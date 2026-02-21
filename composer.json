@@ -1,0 +1,29 @@
+{
+    "name": "xxi/api",
+    "description": "Мой API",
+    "type": "project",
+    "autoload": {
+        "psr-4": {
+            "Api\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "xxi"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {
+        "slim/slim": "^4",
+        "slim/psr7": "^1",
+        "vlucas/phpdotenv": "^5",
+        "monolog/monolog": "^3",
+        "respect/validation": "^2",
+        "ramsey/uuid": "^4",
+        "league/flysystem": "^3",
+        "php-di/php-di": "^7.1"
+    },
+    "require-dev": {
+        "symfony/var-dumper": "^6"
+    }
+}

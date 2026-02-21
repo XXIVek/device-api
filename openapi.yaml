@@ -1,0 +1,145 @@
+openapi: 3.0.0
+info:
+  title: Device API
+  description: API for exchanging messages and files between devices
+  version: 1.0.0
+servers:
+  - url: http://localhost/device_api/public
+    description: Local server
+paths:
+  /api/v1/messages:
+    post:
+      summary: Send a message to another device
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                recipient_id:
+                  type: integer
+                  description: ID of the recipient device
+                subject:
+                  type: string
+                message:
+                  type: string
+                  description: JSON string with the message content
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Message created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message_id:
+                    type: string
+                    format: uuid
+    get:
+      summary: Get pending messages for the current device
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+              items:
+                $ref: '#/components/schemas/Message'
+  /api/messages/{id}:
+    get:
+      summary: Get a specific message metadata
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Message details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageDetail'
+    delete:
+      summary: Delete a message (confirm delivery)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Message deleted
+  /api/messages/{id}/file:
+    get:
+      summary: Download attached file
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The file
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Token
+  schemas:
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sender_id:
+          type: integer
+        subject:
+          type: string
+        body:
+          type: object
+        file_url:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    MessageDetail:
+      allOf:
+        - $ref: '#/components/schemas/Message'
+        - type: object
+          properties:
+            file_path:
+              type: string
+              nullable: true
+
