@@ -2,7 +2,7 @@
 // ID сообщения, полученного из списка (например, 123e4567-e89b-12d3-a456-426614174000)
 $messageId = 'полученный_uuid';
 $url = 'http://localhost/device_api/public/api/v1/messages' . $messageId;
-$token = 'token_device_b_456';
+$token = 'полученный_device_uuid'; // вместо token_device_a_123
 
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $url);

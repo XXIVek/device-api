@@ -1,6 +1,6 @@
 <?php
 $url = 'http://localhost/device_api/public/api/v1/messages';
-$token = 'token_device_a_123'; // должно совпадать с БД
+$token = 'полученный_device_uuid'; // вместо token_device_a_123
 
 // Получаем ID устройства B из базы данных (или укажите вручную)
 // Для начала можно посмотреть в БД: SELECT id FROM devices WHERE name = 'Device B';

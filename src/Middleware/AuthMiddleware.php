@@ -4,44 +4,41 @@ namespace App\Middleware;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\RequestHandlerInterface as Handler;
 use Slim\Psr7\Response;
-use PDO;
+use App\Models\Device;
 
 class AuthMiddleware
 {
-    private $db;
+    private $deviceModel;
 
-    public function __construct(PDO $db)
+    public function __construct($db)
     {
-        $this->db = $db;
+        $this->deviceModel = new Device($db);
     }
 
     public function __invoke(Request $request, Handler $handler): Response
     {
-        // Получаем заголовок Authorization
         $authHeader = $request->getHeaderLine('Authorization');
         if (!$authHeader || !preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
-            $response = new Response();
-            $response->getBody()->write(json_encode(['error' => 'Token not provided']));
-            return $response->withStatus(401)->withHeader('Content-Type', 'application/json');
+            return $this->unauthorized('Token not provided');
         }
 
-        $token = $matches[1];
+        $deviceUuid = $matches[1];
 
-        // Ищем устройство по токену в БД
-        $stmt = $this->db->prepare('SELECT id FROM devices WHERE token = ?');
-        $stmt->execute([$token]);
-        $device = $stmt->fetch();
-
+        $device = $this->deviceModel->findByDeviceUuid($deviceUuid);
         if (!$device) {
-            $response = new Response();
-            $response->getBody()->write(json_encode(['error' => 'Invalid token']));
-            return $response->withStatus(401)->withHeader('Content-Type', 'application/json');
+            return $this->unauthorized('Invalid device token');
         }
 
-        // Добавляем ID устройства в атрибуты запроса
-        $request = $request->withAttribute('device_id', $device['id']);
+        $request = $request->withAttribute('device_uuid', $device['device_uuid'])
+                           ->withAttribute('license_uuid', $device['license_uuid']);
 
-        // Продолжаем обработку
         return $handler->handle($request);
+    }
+
+    private function unauthorized($message): Response
+    {
+        $response = new Response();
+        $response->getBody()->write(json_encode(['error' => $message]));
+        return $response->withStatus(401)->withHeader('Content-Type', 'application/json');
     }
 }

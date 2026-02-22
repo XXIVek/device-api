@@ -13,62 +13,54 @@ class Message
         $this->db = $db;
     }
 
-    // Создание нового сообщения
-    public function create($senderId, $recipientId, $subject, $body, $filePath = null)
+    public function create($senderUuid, $recipientUuid, $subject, $body, $filePath = null)
     {
-        $id = Uuid::uuid4()->getBytes(); // генерируем бинарный UUID
-        $sql = "INSERT INTO messages (id, sender_id, recipient_id, subject, body, file_path, status) 
+        $id = Uuid::uuid4()->getBytes();
+        $sql = "INSERT INTO messages (id, sender_uuid, recipient_uuid, subject, body, file_path, status) 
                 VALUES (?, ?, ?, ?, ?, ?, 'pending')";
         $stmt = $this->db->prepare($sql);
-        $stmt->execute([$id, $senderId, $recipientId, $subject, $body, $filePath]);
-        // Возвращаем UUID в строковом виде
+        $stmt->execute([$id, $senderUuid, $recipientUuid, $subject, $body, $filePath]);
         return Uuid::fromBytes($id)->toString();
     }
 
-    // Получить все ожидающие сообщения для получателя
-    public function getPendingForRecipient($recipientId)
+    public function getPendingForRecipient($recipientUuid)
     {
-        $stmt = $this->db->prepare('SELECT id, sender_id, subject, body, file_path, created_at 
+        $stmt = $this->db->prepare('SELECT id, sender_uuid, subject, body, file_path, created_at 
                                      FROM messages 
-                                     WHERE recipient_id = ? AND status = "pending" 
+                                     WHERE recipient_uuid = ? AND status = "pending" 
                                      ORDER BY created_at');
-        $stmt->execute([$recipientId]);
+        $stmt->execute([$recipientUuid]);
         $rows = $stmt->fetchAll();
-        // Конвертируем бинарный id в строку UUID
         foreach ($rows as &$row) {
             $row['id'] = Uuid::fromBytes($row['id'])->toString();
         }
         return $rows;
     }
 
-    // Найти сообщение по ID (только если получатель совпадает)
-    public function findForRecipient($messageIdBytes, $recipientId)
+    public function findForRecipient($messageIdBytes, $recipientUuid)
     {
-        $stmt = $this->db->prepare('SELECT * FROM messages WHERE id = ? AND recipient_id = ?');
-        $stmt->execute([$messageIdBytes, $recipientId]);
+        $stmt = $this->db->prepare('SELECT * FROM messages WHERE id = ? AND recipient_uuid = ?');
+        $stmt->execute([$messageIdBytes, $recipientUuid]);
         return $stmt->fetch();
     }
 
-    // Удалить сообщение (и вернуть путь к файлу)
-    public function deleteAndGetFilePath($messageIdBytes, $recipientId)
+    public function deleteAndGetFilePath($messageIdBytes, $recipientUuid)
     {
-        $stmt = $this->db->prepare('SELECT file_path FROM messages WHERE id = ? AND recipient_id = ?');
-        $stmt->execute([$messageIdBytes, $recipientId]);
+        $stmt = $this->db->prepare('SELECT file_path FROM messages WHERE id = ? AND recipient_uuid = ?');
+        $stmt->execute([$messageIdBytes, $recipientUuid]);
         $row = $stmt->fetch();
         if (!$row) {
             return null;
         }
-        // Удаляем запись
         $stmt = $this->db->prepare('DELETE FROM messages WHERE id = ?');
         $stmt->execute([$messageIdBytes]);
         return $row['file_path'];
     }
 
-    // Пометить как доставленное (если не хотим сразу удалять)
-    public function markDelivered($messageIdBytes, $recipientId)
+    public function markDelivered($messageIdBytes, $recipientUuid)
     {
         $stmt = $this->db->prepare('UPDATE messages SET status = "delivered", delivered_at = NOW() 
-                                     WHERE id = ? AND recipient_id = ?');
-        return $stmt->execute([$messageIdBytes, $recipientId]);
+                                     WHERE id = ? AND recipient_uuid = ?');
+        return $stmt->execute([$messageIdBytes, $recipientUuid]);
     }
 }
