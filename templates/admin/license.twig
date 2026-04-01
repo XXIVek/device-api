@@ -1,1 +1,37 @@
-
+{% extends "layout/base.twig" %}
+{% block title %}Лицензия{% endblock %}
+{% block content %}
+    <h1>Лицензия</h1>
+    <table>
+        <tr><th>UUID</th><td>{{ license.uuid }}</td></tr>
+        <tr><th>Организация</th><td>{{ license.organization_name }}</td></tr>
+        <tr><th>Номер лицензии</th><td>{{ license.license_number_from_plain }}</td></tr>
+        <tr><th>Версия</th><td>{{ license.version }}</td></tr>
+        <tr><th>ИНН</th><td>{{ license.inn }}</td></tr>
+        <tr><th>КПП</th><td>{{ license.kpp }}</td></tr>
+        <tr><th>Город</th><td>{{ license.city }}</td></tr>
+        <tr><th>Дата создания</th><td>{{ license.created_at }}</td></tr>
+    </table>
+    
+    <h2>Устройства</h2>
+    {% if devices is empty %}
+        <p>Устройств не найдено</p>
+    {% else %}
+        <table>
+            <tr>
+                <th>UUID устройства</th>
+                <th>Название</th>
+                <th>Действия</th>
+            </tr>
+            {% for dev in devices %}
+            <tr>
+                <td>{{ dev.device_uuid }}</td>
+                <td>{{ dev.name }}</td>
+                <td><a href="/admin/devices/{{ dev.device_uuid }}">Просмотр</a></td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+    
+    <p><a href="/admin/licenses">← Назад к списку лицензий</a></p>
+{% endblock %}

@@ -1,1 +1,41 @@
-
+{% extends "layout/base.twig" %}
+{% block title %}Устройство{% endblock %}
+{% block content %}
+    <h1>Устройство</h1>
+    <table>
+        <tr><th>UUID</th><td>{{ device.device_uuid }}</td></tr>
+        <tr><th>Название</th><td>{{ device.name }}</td></tr>
+        <tr><th>Лицензия UUID</th><td>{{ device.license_uuid }}</td></tr>
+        <tr><th>Дата создания</th><td>{{ device.created_at }}</td></tr>
+    </table>
+    
+    <h2>Сообщения</h2>
+    {% if messages is empty %}
+        <p>Сообщений не найдено</p>
+    {% else %}
+        <table>
+            <tr>
+                <th>ID</th>
+                <th>Отправитель</th>
+                <th>Получатель</th>
+                <th>Тема</th>
+                <th>Статус</th>
+                <th>Дата</th>
+                <th>Действия</th>
+            </tr>
+            {% for msg in messages %}
+            <tr>
+                <td>{{ msg.id }}</td>
+                <td>{{ msg.sender_uuid }}</td>
+                <td>{{ msg.recipient_uuid }}</td>
+                <td>{{ msg.subject }}</td>
+                <td>{{ msg.status }}</td>
+                <td>{{ msg.created_at }}</td>
+                <td><a href="/admin/messages/{{ msg.id }}">Просмотр</a></td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+    
+    <p><a href="/admin/devices">← Назад к списку устройств</a></p>
+{% endblock %}

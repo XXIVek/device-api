@@ -1,1 +1,20 @@
-
+{% extends "layout/base.twig" %}
+{% block title %}Сообщение{% endblock %}
+{% block content %}
+    <h1>Сообщение</h1>
+    <table>
+        <tr><th>ID</th><td>{{ message.id }}</td></tr>
+        <tr><th>Отправитель</th><td>{{ message.sender_uuid }}</td></tr>
+        <tr><th>Получатель</th><td>{{ message.recipient_uuid }}</td></tr>
+        <tr><th>Тема</th><td>{{ message.subject }}</td></tr>
+        <tr><th>Тело</th><td>{{ message.body }}</td></tr>
+        <tr><th>Статус</th><td>{{ message.status }}</td></tr>
+        <tr><th>Дата создания</th><td>{{ message.created_at }}</td></tr>
+        <tr><th>Дата доставки</th><td>{{ message.delivered_at }}</td></tr>
+        {% if message.file_path %}
+        <tr><th>Файл</th><td>{{ message.file_path }}</td></tr>
+        {% endif %}
+    </table>
+    
+    <p><a href="/admin/messages">← Назад к списку сообщений</a></p>
+{% endblock %}

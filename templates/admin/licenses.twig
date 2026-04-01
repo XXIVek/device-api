@@ -1,1 +1,25 @@
-
+{% extends "layout/base.twig" %}
+{% block title %}Лицензии{% endblock %}
+{% block content %}
+    <h1>Лицензии</h1>
+    <table>
+        <tr>
+            <th>UUID</th>
+            <th>Организация</th>
+            <th>Номер лицензии</th>
+            <th>Версия</th>
+            <th>ИНН</th>
+            <th>Действия</th>
+        </tr>
+        {% for lic in licenses %}
+        <tr>
+            <td>{{ lic.uuid }}</td>
+            <td>{{ lic.organization_name }}</td>
+            <td>{{ lic.license_number_from_plain }}</td>
+            <td>{{ lic.version }}</td>
+            <td>{{ lic.inn }}</td>
+            <td><a href="/admin/licenses/{{ lic.uuid }}">Просмотр</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+{% endblock %}

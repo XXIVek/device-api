@@ -1,1 +1,21 @@
-
+{% extends "layout/base.twig" %}
+{% block title %}Устройства{% endblock %}
+{% block content %}
+    <h1>Устройства</h1>
+    <table>
+        <tr>
+            <th>UUID</th>
+            <th>Название</th>
+            <th>Лицензия UUID</th>
+            <th>Действия</th>
+        </tr>
+        {% for dev in devices %}
+        <tr>
+            <td>{{ dev.device_uuid }}</td>
+            <td>{{ dev.name }}</td>
+            <td>{{ dev.license_uuid }}</td>
+            <td><a href="/admin/devices/{{ dev.device_uuid }}">Просмотр</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+{% endblock %}
