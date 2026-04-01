@@ -1,0 +1,11 @@
+{% extends "layout/base.twig" %}
+{% block title %}Дашборд{% endblock %}
+{% block content %}
+    <h1>Панель управления</h1>
+    <ul>
+        <li>Организаций: {{ stats.organizations }}</li>
+        <li>Лицензий: {{ stats.licenses }}</li>
+        <li>Устройств: {{ stats.devices }}</li>
+        <li>Сообщений: {{ stats.messages }}</li>
+    </ul>
+{% endblock %}

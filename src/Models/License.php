@@ -56,4 +56,16 @@ class License
         $stmt->execute([$organizationId]);
         return $stmt->fetchAll();
     }
+    public function getAll()
+    {
+        $stmt = $this->db->query('SELECT * FROM licenses ORDER BY uuid');
+        return $stmt->fetchAll();
+    }
+
+    public function findById($id)
+    {
+        $stmt = $this->db->prepare('SELECT * FROM licenses WHERE inn = ?');
+        $stmt->execute([$id]);
+        return $stmt->fetch();
+    }
 }

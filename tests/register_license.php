@@ -1,8 +1,10 @@
 <?php
 $url = 'http://localhost/device_api/public/api/v1/licenses';
-$licenseString = '21082010001890П1Xб ВкK" 0т...'; // замените на реальную строку 112 символов
+$licenseString = '21082010001890П1Xб ВкK" 0т "- IаXее0  8а XК  сEк 2О  д , 0р о1у   1X 0I8V1 НН 305П0 И  20220,3О5 922 К0 12О0,Оон'; // замените на реальную строку 112 символов
 
 $data = ['license' => $licenseString];
+
+xdebug_break();
 
 $ch = curl_init();
 curl_setopt($ch, CURLOPT_URL, $url);

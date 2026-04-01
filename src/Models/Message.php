@@ -63,4 +63,37 @@ class Message
                                      WHERE id = ? AND recipient_uuid = ?');
         return $stmt->execute([$messageIdBytes, $recipientUuid]);
     }
+
+    public function getAll()
+    {
+        $stmt = $this->db->query('SELECT id, sender_uuid, recipient_uuid, subject, status, created_at, delivered_at FROM messages ORDER BY created_at DESC');
+        $rows = $stmt->fetchAll();
+        foreach ($rows as &$row) {
+            $row['id'] = \Ramsey\Uuid\Uuid::fromBytes($row['id'])->toString();
+        }
+        return $rows;
+    }   
+
+    public function findById($idStr)
+    {
+        $idBytes = \Ramsey\Uuid\Uuid::fromString($idStr)->getBytes();
+        $stmt = $this->db->prepare('SELECT * FROM messages WHERE id = ?');
+        $stmt->execute([$idBytes]);
+        $row = $stmt->fetch();
+        if ($row) {
+            $row['id'] = \Ramsey\Uuid\Uuid::fromBytes($row['id'])->toString();
+        }
+        return $row;
+    }
+
+    public function getForDevice($deviceUuid)
+    {
+        $stmt = $this->db->prepare('SELECT id, sender_uuid, recipient_uuid, subject, body, file_path, status, created_at, delivered_at FROM messages WHERE sender_uuid = ? OR recipient_uuid = ? ORDER BY created_at DESC');
+        $stmt->execute([$deviceUuid, $deviceUuid]);
+        $rows = $stmt->fetchAll();
+        foreach ($rows as &$row) {
+            $row['id'] = \Ramsey\Uuid\Uuid::fromBytes($row['id'])->toString();
+        }
+        return $rows;
+    }
 }

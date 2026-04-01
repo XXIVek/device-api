@@ -1,6 +1,6 @@
 <?php
 
-namespace LicenseDecoder;
+namespace App;
 
 class LicenseDecoder
 {

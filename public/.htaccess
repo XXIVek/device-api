@@ -1,5 +1,6 @@
 DirectorySlash Off
 RewriteEngine On
+RewriteBase /device_api/public/
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ apimain.php [QSA,L]

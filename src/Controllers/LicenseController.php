@@ -98,7 +98,7 @@ class LicenseController
 
     public function list(Request $request, Response $response): Response
     {
-        $deviceUuid = $request->getAttribute('device_uuid');
+        $deviceUuid = $request->getAttribute('inn');
         if (!$deviceUuid) {
             return $this->errorResponse($response, 'Unauthorized', 401);
         }

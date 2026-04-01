@@ -1,0 +1,27 @@
+{% extends "layout/base.twig" %}
+{% block title %}Организации{% endblock %}
+{% block content %}
+    <h1>Организации</h1>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>ИНН</th>
+            <th>КПП</th>
+            <th>Название</th>
+            <th>Город</th>
+            <th>Дата создания</th>
+            <th>Действия</th>
+        </tr>
+        {% for org in organizations %}
+        <tr>
+            <td>{{ org.id }}</td>
+            <td>{{ org.inn }}</td>
+            <td>{{ org.kpp }}</td>
+            <td>{{ org.name }}</td>
+            <td>{{ org.city }}</td>
+            <td>{{ org.created_at }}</td>
+            <td><a href="/admin/organizations/{{ org.id }}">Просмотр</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+{% endblock %}

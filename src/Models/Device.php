@@ -35,4 +35,16 @@ class Device
         $stmt->execute([$licenseUuid]);
         return $stmt->fetchAll();
     }
+    public function getAll()
+    {
+        $stmt = $this->db->query('SELECT * FROM devices ORDER BY device_uuid');
+        return $stmt->fetchAll();
+    }
+
+    public function findById($id)
+    {
+        $stmt = $this->db->prepare('SELECT * FROM devices WHERE devices = ?');
+        $stmt->execute([$id]);
+        return $stmt->fetch();
+    }
 }
