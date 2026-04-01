@@ -1,1 +1,29 @@
-
+{% extends "layout/base.twig" %}
+{% block title %}Сообщения{% endblock %}
+{% block content %}
+    <h1>Сообщения</h1>
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Отправитель</th>
+            <th>Получатель</th>
+            <th>Тема</th>
+            <th>Статус</th>
+            <th>Дата создания</th>
+            <th>Дата доставки</th>
+            <th>Действия</th>
+        </tr>
+        {% for msg in messages %}
+        <tr>
+            <td>{{ msg.id }}</td>
+            <td>{{ msg.sender_uuid }}</td>
+            <td>{{ msg.recipient_uuid }}</td>
+            <td>{{ msg.subject }}</td>
+            <td>{{ msg.status }}</td>
+            <td>{{ msg.created_at }}</td>
+            <td>{{ msg.delivered_at }}</td>
+            <td><a href="/admin/messages/{{ msg.id }}">Просмотр</a></td>
+        </tr>
+        {% endfor %}
+    </table>
+{% endblock %}

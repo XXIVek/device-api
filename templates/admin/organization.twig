@@ -1,1 +1,37 @@
-
+{% extends "layout/base.twig" %}
+{% block title %}Организация{% endblock %}
+{% block content %}
+    <h1>Организация</h1>
+    <table>
+        <tr><th>ID</th><td>{{ organization.id }}</td></tr>
+        <tr><th>ИНН</th><td>{{ organization.inn }}</td></tr>
+        <tr><th>КПП</th><td>{{ organization.kpp }}</td></tr>
+        <tr><th>Название</th><td>{{ organization.name }}</td></tr>
+        <tr><th>Город</th><td>{{ organization.city }}</td></tr>
+        <tr><th>Дата создания</th><td>{{ organization.created_at }}</td></tr>
+    </table>
+    
+    <h2>Лицензии</h2>
+    {% if licenses is empty %}
+        <p>Лицензий не найдено</p>
+    {% else %}
+        <table>
+            <tr>
+                <th>UUID</th>
+                <th>Номер лицензии</th>
+                <th>Версия</th>
+                <th>Действия</th>
+            </tr>
+            {% for lic in licenses %}
+            <tr>
+                <td>{{ lic.uuid }}</td>
+                <td>{{ lic.license_number_from_plain }}</td>
+                <td>{{ lic.version }}</td>
+                <td><a href="/admin/licenses/{{ lic.uuid }}">Просмотр</a></td>
+            </tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+    
+    <p><a href="/admin/organizations">← Назад к списку организаций</a></p>
+{% endblock %}
