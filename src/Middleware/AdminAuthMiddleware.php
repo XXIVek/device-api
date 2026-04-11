@@ -15,7 +15,7 @@ class AdminAuthMiddleware
             $routeParser = RouteContext::fromRequest($request)->getRouteParser();
             $_SESSION['login_redirect'] = (string) $request->getUri();
             $response = new Response();
-            return $response->withHeader('Location', '/admin/login')->withStatus(302);
+            return $response->withHeader('Location', '/device_api/public/admin/login')->withStatus(302);
         }
         return $handler->handle($request);
     }

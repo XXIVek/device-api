@@ -46,7 +46,7 @@ class AdminController
         if ($admin) {
             $_SESSION['admin_id'] = $admin['id'];
             $_SESSION['admin_username'] = $admin['username'];
-            $redirect = $_SESSION['login_redirect'] ?? '/admin/dashboard';
+            $redirect = $_SESSION['login_redirect'] ?? '/device_api/public/admin/dashboard';
             unset($_SESSION['login_redirect']);
             return $response->withHeader('Location', $redirect)->withStatus(302);
         }
@@ -61,7 +61,7 @@ class AdminController
     {
         unset($_SESSION['admin_id']);
         session_destroy();
-        return $response->withHeader('Location', '/admin/login')->withStatus(302);
+        return $response->withHeader('Location', '/device_api/public/admin/login')->withStatus(302);
     }
 
     // GET /admin/dashboard

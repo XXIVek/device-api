@@ -26,7 +26,16 @@ class LicenseController
     public function register(Request $request, Response $response): Response
     {
         $parsedBody = $request->getParsedBody();
-        $licenseString = $parsedBody['license'] ?? null;
+        $licenseString = $parsedBody['license_key'] ?? null;
+        $deviceName = $parsedBody['device_name'] ?? 'Неизвестное устройство'; // Значение по умолчанию
+        
+        // Валидация имени (опционально, но рекомендуется)
+        if (!is_string($deviceName) || mb_strlen($deviceName) > 100) {
+            return $response->withJson([
+                'success' => false,
+                'error' => 'Поле device_name должно быть строкой до 100 символов'
+            ], 400);
+        }
 
         if (!$licenseString) {
             return $this->errorResponse($response, 'License string is required', 400);
@@ -74,7 +83,7 @@ class LicenseController
         }
 
         // Создаём устройство для этого клиента
-        $deviceUuid = $this->deviceModel->create($licenseUuid);
+        $deviceUuid = $this->deviceModel->create($licenseUuid,$deviceName);
 
         $this->logger->info('License registered', [
             'license_number' => $result['licenseNumberFromPlain'],
@@ -85,6 +94,7 @@ class LicenseController
         $responseData = [
             'license_uuid' => $licenseUuid,
             'device_uuid' => $deviceUuid,
+            'device_name' => $deviceName,
             'organization' => [
                 'inn' => $result['inn'],
                 'name' => $result['organization'],
