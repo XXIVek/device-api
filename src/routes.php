@@ -32,6 +32,24 @@ return function($app) {
     //Публичный эндпоинт список лицензий организации
     $app->get('/api/v1/licenses', [LicenseController::class, 'list']); 
 
+    // Группа защищённых маршрутов обмена (Exchange)
+    $app->group('/api/v1/exchange', function (RouteCollectorProxy $group) {
+        // Отправка файла из торговой точки в backoffice
+        $group->post('/send', [App\Controllers\ExchangeController::class, 'sendToBackoffice']);
+        
+        // Получение списка входящих файлов (для backoffice)
+        $group->get('/incoming', [App\Controllers\ExchangeController::class, 'getIncomingFiles']);
+        
+        // Получение конкретного файла (для backoffice)
+        $group->get('/files/{id}', [App\Controllers\ExchangeController::class, 'getFile']);
+        
+        // Обновление статуса обработки файла (для backoffice)
+        $group->put('/status/{id}', [App\Controllers\ExchangeController::class, 'updateStatus']);
+        
+        // Получение статуса отправки файла (для торговой точки)
+        $group->get('/outgoing/{message_id}/status', [App\Controllers\ExchangeController::class, 'getOutgoingStatus']);
+    })->add(AuthMiddleware::class);
+
     // Группа защищённых маршрутов
     $app->group('/api/v1', function (RouteCollectorProxy $group) {
 

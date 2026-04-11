@@ -96,4 +96,81 @@ class Message
         }
         return $rows;
     }
+
+    /**
+     * Получить входящие сообщения для backoffice от торговых точек
+     * @param string $backofficeDeviceUuid UUID устройства backoffice
+     * @param string|null $senderUuid Фильтр по отправителю (опционально)
+     * @param int $limit Лимит записей
+     * @param int $offset Смещение
+     * @return array
+     */
+    public function getIncomingForBackoffice($backofficeDeviceUuid, $senderUuid = null, $limit = 50, $offset = 0)
+    {
+        if ($senderUuid) {
+            $stmt = $this->db->prepare(
+                'SELECT id, sender_uuid, subject, body, file_path, status, created_at, delivered_at, exchange_status, exchange_comment
+                 FROM messages
+                 WHERE recipient_uuid = ? AND sender_uuid = ?
+                 ORDER BY created_at DESC
+                 LIMIT ? OFFSET ?'
+            );
+            $stmt->execute([$backofficeDeviceUuid, $senderUuid, $limit, $offset]);
+        } else {
+            $stmt = $this->db->prepare(
+                'SELECT id, sender_uuid, subject, body, file_path, status, created_at, delivered_at, exchange_status, exchange_comment
+                 FROM messages
+                 WHERE recipient_uuid = ?
+                 ORDER BY created_at DESC
+                 LIMIT ? OFFSET ?'
+            );
+            $stmt->execute([$backofficeDeviceUuid, $limit, $offset]);
+        }
+        
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Найти сообщение по ID для отправителя
+     * @param string $messageIdBytes ID сообщения в бинарном формате
+     * @param string $senderUuid UUID отправителя
+     * @return array|null
+     */
+    public function findForSender($messageIdBytes, $senderUuid)
+    {
+        $stmt = $this->db->prepare(
+            'SELECT id, sender_uuid, recipient_uuid, subject, body, file_path, status, created_at, delivered_at, exchange_status, exchange_comment
+             FROM messages
+             WHERE id = ? AND sender_uuid = ?'
+        );
+        $stmt->execute([$messageIdBytes, $senderUuid]);
+        return $stmt->fetch();
+    }
+
+    /**
+     * Обновить статус обработки файла для обмена
+     * @param string $messageIdBytes ID сообщения в бинарном формате
+     * @param string $backofficeDeviceUuid UUID backoffice
+     * @param string $status Статус: processed|rejected|error
+     * @param string $comment Комментарий
+     * @return bool
+     */
+    public function updateExchangeStatus($messageIdBytes, $backofficeDeviceUuid, $status, $comment = '')
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE messages
+             SET exchange_status = ?, exchange_comment = ?, updated_at = NOW()
+             WHERE id = ? AND recipient_uuid = ?'
+        );
+        return $stmt->execute([$status, $comment, $messageIdBytes, $backofficeDeviceUuid]);
+    }
+
+    /**
+     * Получить PDO соединение для использования в других классах
+     * @return PDO
+     */
+    public function getDb()
+    {
+        return $this->db;
+    }
 }

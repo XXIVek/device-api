@@ -1,3 +1,4 @@
+```
 # Compiled and build artifacts
 *.pyc
 __pycache__/
@@ -16,39 +17,33 @@ venv/
 .venv/
 .env
 .env.local
-*.env.*
+.env.*
 
 # Logs and temp files
 *.log
 *.tmp
 *.swp
-*.swo
 
 # Editors
 .vscode/
 .idea/
+
+# Build and distribution
+dist/
+build/
+target/
+.gradle/
 
 # Coverage
 coverage/
 htmlcov/
 .coverage
 
-# Distribution / packaging
-dist/
-build/
-*.tar.gz
-*.zip
-
 # OS generated files
 .DS_Store
 Thumbs.db
 
-# PHP specific
-*.php~
-.php_cs.cache
-.phpunit.result.cache
-
-# Laravel/Symfony specific (if applicable)
-storage/
-bootstrap/cache/
-vendor/
+# Cache directories
+.mypy_cache/
+.pytest_cache/
+```

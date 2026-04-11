@@ -53,8 +53,13 @@ class MessageController
         if (isset($uploadedFiles['file']) && $uploadedFiles['file']->getError() === UPLOAD_ERR_OK) {
             $filePath = $this->fileService->saveUploadedFile($uploadedFiles['file'], $senderUuid);
             if (!$filePath) {
-                $this->logger->warning('Failed to save uploaded file', ['sender' => $senderUuid]);
-                return $this->errorResponse($response, 'Failed to save file', 500);
+                $this->logger->warning('Failed to save uploaded file or validation failed', [
+                    'sender' => $senderUuid,
+                    'filename' => $uploadedFiles['file']->getClientFilename(),
+                    'size' => $uploadedFiles['file']->getSize(),
+                    'error_code' => $uploadedFiles['file']->getError()
+                ]);
+                return $this->errorResponse($response, 'Failed to save file or file validation failed. Check file type, size (max 10MB), and content.', 400);
             }
         }
 
