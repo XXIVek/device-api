@@ -25,13 +25,6 @@ class FileService
      */
     public function saveUploadedFile($uploadedFile, $deviceId): ?string
     {
-         try {
-            $this->filesystem->delete($path);
-            return true;
-        } catch (UnableToDeleteFile $e) {
-            return false;
-        }
-        
        if ($uploadedFile->getError() !== UPLOAD_ERR_OK) {
             return null;
         }
