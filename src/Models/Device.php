@@ -43,7 +43,7 @@ class Device
 
     public function findById($id)
     {
-        $stmt = $this->db->prepare('SELECT * FROM devices WHERE devices = ?');
+        $stmt = $this->db->prepare('SELECT * FROM devices WHERE device_uuid = ?');
         $stmt->execute([$id]);
         return $stmt->fetch();
     }
