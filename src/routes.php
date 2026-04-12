@@ -29,9 +29,6 @@ return function($app) {
     // Публичный эндпоинт для регистрации лицензии
     $app->post('/api/v1/licenses', [LicenseController::class, 'register']);
     
-    //Публичный эндпоинт список лицензий организации
-    $app->get('/api/v1/licenses', [LicenseController::class, 'list']); 
-
     // Группа защищённых маршрутов обмена (Exchange)
     $app->group('/api/v1/exchange', function (RouteCollectorProxy $group) {
         // Отправка файла из торговой точки в backoffice
@@ -53,6 +50,7 @@ return function($app) {
     // Группа защищённых маршрутов
     $app->group('/api/v1', function (RouteCollectorProxy $group) {
 
+        $group->get('/licenses', [LicenseController::class, 'list']);
         $group->post('/messages', [MessageController::class, 'send']);
         $group->get('/messages', [MessageController::class, 'list']);
         $group->get('/messages/{id}', [MessageController::class, 'get']);
