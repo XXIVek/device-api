@@ -131,6 +131,27 @@ class Message
     }
 
     /**
+     * Получить входящие сообщения для торговой точки от backoffice
+     * @param string $deviceUuid UUID устройства торговой точки
+     * @param int $limit Лимит записей
+     * @param int $offset Смещение
+     * @return array
+     */
+    public function getIncomingForDevice($deviceUuid, $limit = 50, $offset = 0)
+    {
+        $stmt = $this->db->prepare(
+            'SELECT id, sender_uuid, subject, body, file_path, status, created_at, delivered_at, exchange_status, exchange_comment
+             FROM messages
+             WHERE recipient_uuid = ?
+             ORDER BY created_at DESC
+             LIMIT ? OFFSET ?'
+        );
+        $stmt->execute([$deviceUuid, $limit, $offset]);
+        
+        return $stmt->fetchAll();
+    }
+
+    /**
      * Найти сообщение по ID для отправителя
      * @param string $messageIdBytes ID сообщения в бинарном формате
      * @param string $senderUuid UUID отправителя

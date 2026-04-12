@@ -31,18 +31,27 @@ return function($app) {
     
     // Группа защищённых маршрутов обмена (Exchange)
     $app->group('/api/v1/exchange', function (RouteCollectorProxy $group) {
+        // Отправка файла из backoffice в торговую точку
+        $group->post('/send-to-device', [App\Controllers\ExchangeController::class, 'sendToDevice']);
+
+        // Получение списка входящих файлов для торговой точки от backoffice
+        $group->get('/incoming-for-device', [App\Controllers\ExchangeController::class, 'getIncomingForDevice']);
+
+        // Удаление файла после скачивания (для торговой точки)
+        $group->delete('/files/{id}', [App\Controllers\ExchangeController::class, 'deleteFile']);
+
         // Отправка файла из торговой точки в backoffice
         $group->post('/send', [App\Controllers\ExchangeController::class, 'sendToBackoffice']);
-        
+
         // Получение списка входящих файлов (для backoffice)
         $group->get('/incoming', [App\Controllers\ExchangeController::class, 'getIncomingFiles']);
-        
-        // Получение конкретного файла (для backoffice)
+
+        // Получение конкретного файла (для backoffice и торговой точки)
         $group->get('/files/{id}', [App\Controllers\ExchangeController::class, 'getFile']);
-        
+
         // Обновление статуса обработки файла (для backoffice)
         $group->put('/status/{id}', [App\Controllers\ExchangeController::class, 'updateStatus']);
-        
+
         // Получение статуса отправки файла (для торговой точки)
         $group->get('/outgoing/{message_id}/status', [App\Controllers\ExchangeController::class, 'getOutgoingStatus']);
     })->add(AuthMiddleware::class);

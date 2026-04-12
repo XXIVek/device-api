@@ -1,141 +1,124 @@
-# API для обмена файлами между торговыми точками и Backoffice
+# Документация API обмена файлами
 
 ## Обзор
 
-Данный API реализует обмен файлами между:
-- **Торговыми точками** (имеют свою лицензию и device_uuid)
-- **Центральной программой (Backoffice)** (имеет специальную лицензию с INN = `BACKOFFICE001`)
+Система обмена файлами между торговыми точками и Backoffice поддерживает два направления:
 
-### Основные принципы
+1. **Торговая точка → Backoffice** (отправка данных из торговой точки в центральный офис)
+2. **Backoffice → Торговая точка** (рассылка данных из центрального офиса в торговые точки)
 
-1. **Однонаправленная передача**: Торговые точки отправляют файлы только в Backoffice
-2. **Аутентификация**: Все запросы требуют заголовок `Authorization: Bearer <device_uuid>`
-3. **Валидация файлов**: Проверяется размер (макс. 10MB), тип, расширение и содержимое
-4. **Поддерживаемые форматы**: XML и DBF файлы
-5. **Статусы обработки**: Backoffice может обновлять статус обработки файла
+## Поддерживаемые форматы файлов
 
----
+- **XML** - стандартный формат для обмена данными
+- **DBF** - формат dBASE/FoxPro (версии 0x03, 0x30, 0x43, 0x8B, 0xF5 и др.)
 
-## Алгоритм работы
+Максимальный размер файла: **10MB**
 
-### 1. Регистрация лицензии (первичная настройка)
+### Сохранение имён файлов
 
-**Запрос:**
-```http
-POST /api/v1/licenses
-Content-Type: application/json
+Система сохраняет **оригинальные имена файлов** с добавлением уникального UUID-префикса для избежания коллизий. Например:
+- Исходное имя: `order_2024.xml`
+- Сохранённое имя: `550e8400-e29b-41d4-a716-446655440000_order_2024.xml`
 
-{
-  "license": "<строка лицензии из 1С>"
-}
-```
-
-**Ответ:**
-```json
-{
-  "license_uuid": "550e8400-e29b-41d4-a716-446655440000",
-  "device_uuid": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-  "organization": {
-    "inn": "7701234567",
-    "name": "ООО Ромашка",
-    "city": "Москва"
-  }
-}
-```
-
-**Важно:** Сохраните `device_uuid` для использования в заголовке `Authorization`.
+При скачивании файла оригинальное имя автоматически восстанавливается через HTTP-заголовки:
+- `Content-Disposition: attachment; filename="order_2024.xml"`
+- `X-Original-Filename: order_2024.xml`
 
 ---
 
-### 2. Отправка файла из торговой точки в Backoffice
+## Сценарий 1: Отправка файлов из Backoffice в торговую точку
 
-**Запрос:**
-```http
-POST /api/v1/exchange/send
-Authorization: Bearer <device_uuid_торговой_точки>
+### Шаг 1: Backoffice отправляет файл в торговую точку
+
+**POST** `/api/v1/exchange/send-to-device`
+
+**Заголовки:**
+```
+Authorization: Bearer <backoffice_device_uuid>
 Content-Type: multipart/form-data
-
-Form data:
-- file: <бинарный файл (.xml или .dbf)>
-- message: {"doc_type": "UPD", "doc_number": "123", "doc_date": "2025-01-15"}
-- subject: УПД №123 от 15.01.2025 (опционально)
 ```
 
-**Ответ (201 Created):**
+**Параметры:**
+| Параметр | Тип | Обязательный | Описание |
+|----------|-----|--------------|----------|
+| recipient_device_uuid | string | Да | UUID устройства получателя (торговой точки) |
+| file | file | Да | Загружаемый файл (XML или DBF) |
+| message | string | Да | JSON с метаданными |
+| subject | string | Нет | Тема сообщения (по умолчанию: "Файл от backoffice") |
+
+**Пример запроса (curl):**
+```bash
+curl -X POST https://api.example.com/api/v1/exchange/send-to-device \
+  -H "Authorization: Bearer <backoffice_device_uuid>" \
+  -F "recipient_device_uuid=<device_uuid>" \
+  -F "file=@data.xml" \
+  -F "message={\"type\":\"price_update\",\"version\":\"1.0\"}" \
+  -F "subject=Обновление прайс-листа"
+```
+
+**Ответ при успехе (201):**
 ```json
 {
   "status": "ok",
-  "message_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "backoffice_device_uuid": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  "message_id": "550e8400-e29b-41d4-a716-446655440000",
+  "recipient_device_uuid": "<device_uuid>"
 }
 ```
 
 **Коды ошибок:**
-- `400` - Файл не прошёл валидацию, неверный формат (требуется XML или DBF), или отсутствует поле `message`
-- `403` - Лицензия отправителя не активна
-- `500` - Backoffice не настроен в системе
+| Код | Сообщение | Описание |
+|-----|-----------|----------|
+| 400 | recipient_device_uuid is required | Не указан UUID получателя |
+| 400 | message (JSON metadata) is required | Не указаны метаданные |
+| 400 | Message must be a valid JSON string | Некорректный JSON |
+| 400 | File is required | Файл не загружен |
+| 400 | Only XML and DBF files are allowed | Неподдерживаемый формат файла |
+| 403 | Access denied: backoffice only | Запрос не от backoffice |
+| 403 | Recipient license is not active | Лицензия получателя неактивна |
+| 404 | Recipient device not found | Устройство не найдено |
 
 ---
 
-### 3. Получение статуса отправки файла (для торговой точки)
+### Шаг 2: Торговая точка запрашивает список файлов
 
-**Запрос:**
-```http
-GET /api/v1/exchange/outgoing/{message_id}/status
-Authorization: Bearer <device_uuid_торговой_точки>
+**GET** `/api/v1/exchange/incoming-for-device`
+
+**Заголовки:**
 ```
-
-**Ответ:**
-```json
-{
-  "message_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "status": "delivered",
-  "delivered_at": "2025-01-15T10:30:00Z",
-  "exchange_status": "processed",
-  "exchange_comment": "Файл успешно обработан"
-}
-```
-
-**Возможные статусы:**
-- `pending` - Ожидает обработки
-- `delivered` - Доставлен получателю
-- `exchange_status`: `processed` | `rejected` | `error` | `null`
-
----
-
-### 4. Получение списка входящих файлов (для Backoffice)
-
-**Запрос:**
-```http
-GET /api/v1/exchange/incoming?limit=50&offset=0&sender_uuid=<опционально>
-Authorization: Bearer <device_uuid_backoffice>
+Authorization: Bearer <device_uuid>
 ```
 
 **Параметры query:**
-- `limit` - количество записей (по умолчанию 50, макс. 100)
-- `offset` - смещение (по умолчанию 0)
-- `sender_uuid` - фильтр по отправителю (опционально)
+| Параметр | Тип | По умолчанию | Описание |
+|----------|-----|--------------|----------|
+| limit | integer | 50 | Количество записей (макс. 100) |
+| offset | integer | 0 | Смещение |
 
-**Ответ:**
+**Пример запроса:**
+```bash
+curl -X GET "https://api.example.com/api/v1/exchange/incoming-for-device?limit=10&offset=0" \
+  -H "Authorization: Bearer <device_uuid>"
+```
+
+**Ответ (200):**
 ```json
 {
   "total": 5,
-  "limit": 50,
+  "limit": 10,
   "offset": 0,
   "items": [
     {
-      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "sender_uuid": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
-      "subject": "УПД №123 от 15.01.2025",
-      "file_url": "/api/v1/exchange/files/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "filename": "upd_123.xml или data.dbf",
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "sender_uuid": "<backoffice_device_uuid>",
+      "subject": "Обновление прайс-листа",
       "metadata": {
-        "doc_type": "UPD",
-        "doc_number": "123",
-        "doc_date": "2025-01-15"
+        "type": "price_update",
+        "version": "1.0"
       },
+      "file_url": "/api/v1/exchange/files/550e8400-e29b-41d4-a716-446655440000",
+      "filename": "price_20240115.xml",
       "status": "pending",
-      "created_at": "2025-01-15T10:00:00Z"
+      "created_at": "2024-01-15 10:30:00"
     }
   ]
 }
@@ -143,224 +126,234 @@ Authorization: Bearer <device_uuid_backoffice>
 
 ---
 
-### 5. Скачивание файла (для Backoffice)
+### Шаг 3: Торговая точка скачивает файл
 
-**Запрос:**
-```http
-GET /api/v1/exchange/files/{message_id}
-Authorization: Bearer <device_uuid_backoffice>
+**GET** `/api/v1/exchange/files/{message_id}`
+
+**Заголовки:**
+```
+Authorization: Bearer <device_uuid>
 ```
 
-**Ответ:**
-- Content-Type: MIME-тип файла
-- Content-Disposition: attachment; filename="..."
+**Пример запроса:**
+```bash
+curl -X GET "https://api.example.com/api/v1/exchange/files/550e8400-e29b-41d4-a716-446655440000" \
+  -H "Authorization: Bearer <device_uuid>" \
+  -o downloaded_file.xml
+```
+
+**Ответ при успехе (200):**
+- Content-Type: MIME-тип файла (application/xml или application/x-dbf)
+- Content-Disposition: attachment; filename="оригинальное_имя_файла.xml"
 - X-Message-ID: ID сообщения
 - X-Sender-UUID: UUID отправителя
-- Тело: бинарные данные файла
+- X-Original-Filename: оригинальное имя файла (сохраняется при загрузке)
+- Тело: содержимое файла
+
+Файл автоматически помечается как доставленный (delivered).
+
+**Важно:** Сервер сохраняет оригинальное имя файла с уникальным префиксом для избежания коллизий. При скачивании оригинальное имя восстанавливается через заголовок `X-Original-Filename` и `Content-Disposition`.
 
 ---
 
-### 6. Обновление статуса обработки (для Backoffice)
+### Шаг 4: Торговая точка удаляет файл после обработки (опционально)
 
-**Запрос:**
-```http
-PUT /api/v1/exchange/status/{message_id}
-Authorization: Bearer <device_uuid_backoffice>
+**DELETE** `/api/v1/exchange/files/{message_id}`
+
+**Заголовки:**
+```
+Authorization: Bearer <device_uuid>
+```
+
+**Пример запроса:**
+```bash
+curl -X DELETE "https://api.example.com/api/v1/exchange/files/550e8400-e29b-41d4-a716-446655440000" \
+  -H "Authorization: Bearer <device_uuid>"
+```
+
+**Ответ (200):**
+```json
+{
+  "status": "ok",
+  "message_id": "550e8400-e29b-41d4-a716-446655440000",
+  "deleted": true
+}
+```
+
+---
+
+## Сценарий 2: Отправка файлов из торговой точки в Backoffice
+
+### Шаг 1: Торговая точка отправляет файл
+
+**POST** `/api/v1/exchange/send`
+
+**Заголовки:**
+```
+Authorization: Bearer <device_uuid>
+Content-Type: multipart/form-data
+```
+
+**Параметры:**
+| Параметр | Тип | Обязательный | Описание |
+|----------|-----|--------------|----------|
+| file | file | Да | Загружаемый файл (XML или DBF) |
+| message | string | Да | JSON с метаданными |
+| subject | string | Нет | Тема сообщения (по умолчанию: "Файл от торговой точки") |
+
+**Пример запроса:**
+```bash
+curl -X POST https://api.example.com/api/v1/exchange/send \
+  -H "Authorization: Bearer <device_uuid>" \
+  -F "file=@sales_data.dbf" \
+  -F "message={\"type\":\"sales_report\",\"date\":\"2024-01-15\"}" \
+  -F "subject=Отчёт о продажах"
+```
+
+**Ответ при успехе (201):**
+```json
+{
+  "status": "ok",
+  "message_id": "550e8400-e29b-41d4-a716-446655440000",
+  "backoffice_device_uuid": "<backoffice_device_uuid>"
+}
+```
+
+---
+
+### Шаг 2: Backoffice получает список входящих файлов
+
+**GET** `/api/v1/exchange/incoming`
+
+**Заголовки:**
+```
+Authorization: Bearer <backoffice_device_uuid>
+```
+
+**Параметры query:**
+| Параметр | Тип | По умолчанию | Описание |
+|----------|-----|--------------|----------|
+| sender_uuid | string | - | Фильтр по отправителю |
+| limit | integer | 50 | Количество записей (макс. 100) |
+| offset | integer | 0 | Смещение |
+
+**Ответ (200):**
+```json
+{
+  "total": 10,
+  "limit": 50,
+  "offset": 0,
+  "items": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "sender_uuid": "<device_uuid>",
+      "subject": "Отчёт о продажах",
+      "metadata": {
+        "type": "sales_report",
+        "date": "2024-01-15"
+      },
+      "file_url": "/api/v1/exchange/files/550e8400-e29b-41d4-a716-446655440000",
+      "filename": "sales_data.dbf",
+      "status": "pending",
+      "created_at": "2024-01-15 14:20:00"
+    }
+  ]
+}
+```
+
+---
+
+### Шаг 3: Backoffice скачивает файл
+
+**GET** `/api/v1/exchange/files/{message_id}`
+
+**Заголовки:**
+```
+Authorization: Bearer <backoffice_device_uuid>
+```
+
+**Ответ при успехе (200):**
+- Содержимое файла
+- Файл помечается как доставленный
+
+---
+
+### Шаг 4: Backoffice обновляет статус обработки
+
+**PUT** `/api/v1/exchange/status/{message_id}`
+
+**Заголовки:**
+```
+Authorization: Bearer <backoffice_device_uuid>
 Content-Type: application/json
+```
 
+**Тело запроса:**
+```json
 {
   "status": "processed",
-  "comment": "Файл успешно обработан и импортирован в 1С"
+  "comment": "Файл успешно обработан"
 }
 ```
 
 **Возможные значения status:**
-- `processed` - Успешно обработан
-- `rejected` - Отклонён (например, неверный формат)
-- `error` - Ошибка обработки
+- `processed` - файл успешно обработан
+- `rejected` - файл отклонён
+- `error` - ошибка обработки
 
-**Ответ:**
+**Ответ (200):**
 ```json
 {
   "status": "ok",
-  "message_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "message_id": "550e8400-e29b-41d4-a716-446655440000",
   "exchange_status": "processed"
 }
 ```
 
 ---
 
-## Валидация файлов
+### Шаг 5: Торговая точка проверяет статус обработки (опционально)
 
-### Разрешённые типы файлов
+**GET** `/api/v1/exchange/outgoing/{message_id}/status`
 
-| Тип | Расширения | MIME-типы |
-|-----|------------|-----------|
-| XML документы | xml | application/xml, text/xml |
-| DBF файлы | dbf | application/x-dbf, application/dbase, application/vnd.dbf |
-
-### Ограничения
-
-- **Максимальный размер:** 10 MB
-- **Запрещённые расширения:** php, exe, bat, sh, cgi, pl, py, js, vbs, cmd, ps1, hta, msi, dll, com, scr, pif, jar, wsf, wsc, jpg, jpeg, png, gif, pdf, txt, doc, docx, xls, xlsx, zip
-- **Проверка содержимого:** 
-  - Для XML: проверяется валидность XML структуры, отсутствие XXE атак
-  - Для DBF: проверяется заголовок файла (версии dBASE III/IV, FoxPro)
-- **Сверка MIME-типа с расширением**
-
----
-
-## Настройка Backoffice
-
-### Шаг 1: Выполнить миграцию БД
-
-```sql
-source /path/to/migrations/001_add_exchange_fields.sql
+**Заголовки:**
+```
+Authorization: Bearer <device_uuid>
 ```
 
-### Шаг 2: Зарегистрировать лицензию Backoffice
-
-```bash
-curl -X POST https://your-server/api/v1/licenses \
-  -H "Content-Type: application/json" \
-  -d '{"license": "<лицензионный ключ backoffice>"}'
-```
-
-Сохраните полученный `device_uuid`.
-
-### Шаг 3: Настроить переменную окружения
-
-```env
-BACKOFFICE_DEVICE_UUID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-```
-
----
-
-## Обработка ошибок
-
-### Коды ответов HTTP
-
-| Код | Описание |
-|-----|----------|
-| 200 | Успешный запрос |
-| 201 | Файл успешно отправлен |
-| 400 | Ошибка валидации (неверный формат, размер, тип файла) |
-| 401 | Неверный или отсутствующий токен аутентификации |
-| 403 | Доступ запрещён (неактивная лицензия, не backoffice) |
-| 404 | Файл или сообщение не найдены |
-| 500 | Внутренняя ошибка сервера |
-| 503 | Сервис временно недоступен (для реализации очереди в 1С) |
-
-### Формат ответа при ошибке
-
+**Ответ (200):**
 ```json
 {
-  "error": "Описание ошибки",
-  "errorCode": -101
+  "message_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "delivered",
+  "delivered_at": "2024-01-15 14:25:00",
+  "exchange_status": "processed",
+  "exchange_comment": "Файл успешно обработан"
 }
 ```
 
 ---
 
-## Пример кода для 1С
+## Валидация DBF файлов
 
-### Отправка файла
+Система проверяет DBF файлы по заголовку:
+- Первый байт определяет версию формата (0x03, 0x30, 0x43, 0x8B, 0xF5 и др.)
+- Проверяется корректность структуры заголовка
+- Проверяется отсутствие вредоносного содержимого
 
-```bsl
-Процедура ОтправитьФайлВBackoffice(Файл, Метаданные)
-    
-    УстройствоUUID = ПолучитьDeviceUUID(); // Из хранения
-    URL = "https://your-server/api/v1/exchange/send";
-    
-    ЗапросHTTP = Новый HTTPЗапрос(URL);
-    ЗапросHTTP.Заголовки["Authorization"] = "Bearer " + УстройствоUUID;
-    
-    // Формируем multipart/form-data
-    Граница = СтрСоединить(Новый УникальныйИдентификатор(), "");
-    ЗапросHTTP.Заголовки["Content-Type"] = "multipart/form-data; boundary=" + Граница;
-    
-    Тело = Новый ДвоичныеДанные;
-    Поток = Новый ПотокВПамяти();
-    Запись = Новый ЗаписьДанныхПотока(Поток, "UTF-8");
-    
-    // Поле file
-    Запись.ЗаписатьСтроку("--" + Граница);
-    Запись.ЗаписатьСтроку("Content-Disposition: form-data; name=""file""; filename=""" + Файл.Имя + """");
-    Запись.ЗаписатьСтроку("Content-Type: application/octet-stream");
-    Запись.ЗаписатьСтроку("");
-    Запись.Закрыть();
-    Поток.Записать(Файл.ОткрытьПотокДляЧтения());
-    
-    // Поле message (JSON)
-    Запись = Новый ЗаписьДанныхПотока(Поток, "UTF-8");
-    Запись.ЗаписатьСтроку(Символы.ПС + "--" + Граница);
-    Запись.ЗаписатьСтроку("Content-Disposition: form-data; name=""message""");
-    Запись.ЗаписатьСтроку("");
-    Запись.ЗаписатьСтроку(СериализоватьJSON(Метаданные));
-    
-    // Завершение
-    Запись.ЗаписатьСтроку(Символы.ПС + "--" + Граница + "--");
-    Запись.Закрыть();
-    
-    ЗапросHTTP.УстановитьТелоИзПотока(Поток);
-    
-    // Отправка
-    HTTPСоединение = Новый HTTPСоединение("your-server", 443, "", "", Новый ЗащищенноеСоединениеOpenSSL);
-    Ответ = HTTPСоединение.ОтправитьДляОбработки(ЗапросHTTP);
-    
-    Если Ответ.КодСостояния = 201 Тогда
-        Результат = ПрочитатьJSON(Ответ.ПолучитьТелоКакСтроку());
-        Сообщить("Файл отправлен, ID: " + Результат.message_id);
-    Иначе
-        Сообщить("Ошибка: " + Ответ.КодСостояния);
-    КонецЕсли;
-    
-КонецПроцедуры
-```
+## Безопасность
 
-### Получение статуса
+- Все запросы требуют аутентификации через Bearer токен (device_uuid)
+- Файлы проверяются на вирусы и вредоносное содержимое
+- Максимальный размер файла ограничен (10MB)
+- Разрешены только форматы XML и DBF
 
-```bsl
-Функция ПолучитьСтатусФайла(MessageUUID)
-    
-    УстройствоUUID = ПолучитьDeviceUUID();
-    URL = "https://your-server/api/v1/exchange/outgoing/" + MessageUUID + "/status";
-    
-    ЗапросHTTP = Новый HTTPЗапрос(URL);
-    ЗапросHTTP.Заголовки["Authorization"] = "Bearer " + УстройствоUUID;
-    
-    HTTPСоединение = Новый HTTPСоединение("your-server", 443, "", "", Новый ЗащищенноеСоединениеOpenSSL);
-    Ответ = HTTPСоединение.Получить(ЗапросHTTP);
-    
-    Если Ответ.КодСостояния = 200 Тогда
-        Возврат ПрочитатьJSON(Ответ.ПолучитьТелоКакСтроку());
-    Иначе
-        Возврат Неопределено;
-    КонецЕсли;
-    
-КонецФункции
-```
+## Логирование
 
----
+Все операции обмена логируются:
+- Отправка файлов
+- Скачивание файлов
+- Удаление файлов
+- Обновление статусов
 
-## Рекомендации по интеграции
-
-### Для торговых точек (1С)
-
-1. **Кэширование device_uuid** после регистрации лицензии
-2. **Повторная отправка** при получении 503/500 (реализовать очередь)
-3. **Логирование** всех отправок и статусов
-4. **Периодический опрос** статуса отправленных файлов
-
-### Для Backoffice
-
-1. **Регулярный polling** `/api/v1/exchange/incoming` (например, каждые 30 сек)
-2. **Обработка файлов** в фоне с обновлением статуса
-3. **Уведомления** торговым точкам об ошибках обработки
-4. **Архивация** обработанных файлов
-
----
-
-## Поддержка
-
-При возникновении проблем обратитесь к логам сервера или создайте issue в репозитории проекта.
+Логи доступны в админ-панели и в файлах `/logs/app.log`.
