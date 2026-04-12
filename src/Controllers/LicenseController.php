@@ -123,18 +123,18 @@ class LicenseController
             return $this->errorResponse($response, 'License not found', 404);
         }
 
-        $licenses = $this->licenseModel->getByOrganizationId($license['organization_id']);
+//        $licenses = $this->licenseModel->getByOrganizationId($license['organization_id']);
 
         $result = [];
-        foreach ($licenses as $lic) {
+//        foreach ($licenses as $lic) {
             $result[] = [
-                'uuid' => $lic['uuid'],
-                'license_number' => $lic['license_number_from_plain'],
-                'version' => $lic['version'],
-                'organization_name' => $lic['organization_name'],
-                'city' => $lic['city']
+                'license_uuid' => $license['uuid'],
+                'license_number' => $license['license_number_from_plain'],
+                'version' => $license['version'],
+                'organization_name' => $license['organization_name'],
+                'city' => $license['city']
             ];
-        }
+ //       }
 
         $response->getBody()->write(json_encode($result));
         return $response->withHeader('Content-Type', 'application/json');
