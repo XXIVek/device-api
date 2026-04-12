@@ -42,9 +42,9 @@ class FileService
 
     /**
      * Сохранить загруженный файл из Psr\Http\Message\UploadedFileInterface
-     * Возвращает относительный путь к файлу или null в случае ошибки.
+     * Возвращает массив с относительным путем и оригинальным именем файла или null в случае ошибки.
      */
-    public function saveUploadedFile($uploadedFile, $deviceId): ?string
+    public function saveUploadedFile($uploadedFile, $deviceId): ?array
     {
         // Проверка наличия файла
         if (!$uploadedFile instanceof UploadedFileInterface) {
@@ -63,7 +63,7 @@ class FileService
             return null;
         }
 
-        // Генерируем уникальное имя
+        // Генерируем уникальное имя, но сохраняем оригинальное
         $originalFilename = $uploadedFile->getClientFilename();
         $extension = strtolower(pathinfo($originalFilename, PATHINFO_EXTENSION));
         
@@ -78,9 +78,12 @@ class FileService
             $extension = 'bin';
         }
         
-        $newFilename = Uuid::uuid4()->toString() . '.' . $extension;
+        // Генерируем уникальный префикс для избежания коллизий
+        $uniquePrefix = Uuid::uuid4()->toString();
+        $safeFilename = $uniquePrefix . '_' . $this->sanitizeFilename($originalFilename);
+        
         // Сохраняем в подпапке device_id
-        $path = $deviceId . '/' . $newFilename;
+        $path = $deviceId . '/' . $safeFilename;
 
         try {
             // Используем stream для сохранения
@@ -89,11 +92,37 @@ class FileService
             if (is_resource($stream)) {
                 fclose($stream);
             }
-            return $path;
+            // Возвращаем путь и оригинальное имя файла
+            return [
+                'path' => $path,
+                'original_filename' => $originalFilename
+            ];
         } catch (UnableToWriteFile $e) {
             // логирование ошибки
             return null;
         }
+    }
+    
+    /**
+     * Санитизация имени файла - удаление опасных символов
+     */
+    private function sanitizeFilename(string $filename): string
+    {
+        // Удаляем опасные символы и оставляем только безопасные
+        $filename = preg_replace('/[^a-zA-Z0-9_\-.]/u', '_', $filename);
+        // Убираем множественные подчеркивания
+        $filename = preg_replace('/_+/', '_', $filename);
+        // Ограничиваем длину имени файла
+        if (strlen($filename) > 255) {
+            $ext = pathinfo($filename, PATHINFO_EXTENSION);
+            $name = pathinfo($filename, PATHINFO_FILENAME);
+            if ($ext) {
+                $filename = substr($name, 0, 250 - strlen($ext)) . '.' . $ext;
+            } else {
+                $filename = substr($filename, 0, 255);
+            }
+        }
+        return $filename;
     }
     
     /**

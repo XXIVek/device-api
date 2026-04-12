@@ -38,6 +38,252 @@ class ExchangeController
     }
 
     /**
+     * Отправка файла из backoffice в торговую точку
+     * 
+     * POST /api/v1/exchange/send-to-device
+     * Authorization: Bearer <backoffice_device_uuid>
+     * Content-Type: multipart/form-data
+     * 
+     * Параметры:
+     * - recipient_device_uuid: UUID устройства получателя (торговой точки) (обязательно)
+     * - file: загружаемый файл
+     * - message: JSON с метаданными (обязательно)
+     * - subject: тема сообщения (опционально)
+     * 
+     * @param Request $request
+     * @param Response $response
+     * @return Response
+     */
+    public function sendToDevice(Request $request, Response $response): Response
+    {
+        $backofficeDeviceUuid = $request->getAttribute('device_uuid');
+        
+        // Проверка что это backoffice
+        $backofficeDevice = $this->deviceModel->findByDeviceUuid($backofficeDeviceUuid);
+        if (!$backofficeDevice || !$this->isBackofficeDevice($backofficeDevice)) {
+            return $this->errorResponse($response, 'Access denied: backoffice only', 403);
+        }
+        
+        $parsedBody = $request->getParsedBody();
+        $uploadedFiles = $request->getUploadedFiles();
+        
+        // Проверка recipient_device_uuid
+        if (!isset($parsedBody['recipient_device_uuid'])) {
+            return $this->errorResponse($response, 'recipient_device_uuid is required', 400);
+        }
+        
+        $recipientDeviceUuid = $parsedBody['recipient_device_uuid'];
+        
+        // Проверка существования устройства получателя
+        $recipientDevice = $this->deviceModel->findByDeviceUuid($recipientDeviceUuid);
+        if (!$recipientDevice) {
+            return $this->errorResponse($response, 'Recipient device not found', 404, -201);
+        }
+        
+        // Проверка активности лицензии получателя
+        $recipientLicense = $this->licenseModel->findByUuid($recipientDevice['license_uuid']);
+        if (!$recipientLicense || !$this->isLicenseActive($recipientLicense)) {
+            return $this->errorResponse($response, 'Recipient license is not active', 403, -202);
+        }
+        
+        if (!isset($parsedBody['message'])) {
+            return $this->errorResponse($response, 'message (JSON metadata) is required', 400);
+        }
+        
+        $messageJson = $parsedBody['message'];
+        $subject = $parsedBody['subject'] ?? 'Файл от backoffice';
+        
+        // Валидация JSON
+        if (!v::json()->validate($messageJson)) {
+            return $this->errorResponse($response, 'Message must be a valid JSON string', 400);
+        }
+        
+        // Сохранение файла
+        $filePath = null;
+        $originalFilenameStored = null;
+        if (isset($uploadedFiles['file']) && $uploadedFiles['file']->getError() === UPLOAD_ERR_OK) {
+            // Проверка расширения файла - только XML и DBF
+            $originalFilename = $uploadedFiles['file']->getClientFilename();
+            $extension = strtolower(pathinfo($originalFilename, PATHINFO_EXTENSION));
+            if ($extension !== 'xml' && $extension !== 'dbf') {
+                return $this->errorResponse($response, 'Only XML and DBF files are allowed for exchange', 400, -103);
+            }
+            
+            $fileResult = $this->fileService->saveUploadedFile($uploadedFiles['file'], $backofficeDeviceUuid);
+            if (!$fileResult) {
+                $this->logger->warning('Failed to save uploaded file', [
+                    'sender' => $backofficeDeviceUuid,
+                    'filename' => $uploadedFiles['file']->getClientFilename()
+                ]);
+                return $this->errorResponse($response, 'Failed to save file. File must be valid XML or DBF, max 10MB, no malicious content.', 400);
+            }
+            // fileResult содержит ['path' => ..., 'original_filename' => ...]
+            $filePath = $fileResult['path'];
+            $originalFilenameStored = $fileResult['original_filename'];
+        } else {
+            return $this->errorResponse($response, 'File is required', 400);
+        }
+        
+        // Создание сообщения
+        try {
+            $messageId = $this->messageModel->create(
+                $backofficeDeviceUuid,
+                $recipientDeviceUuid,
+                $subject,
+                $messageJson,
+                $filePath
+            );
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to create message', ['error' => $e->getMessage()]);
+            return $this->errorResponse($response, 'Database error', 500);
+        }
+        
+        $this->logger->info('File sent from backoffice to device', [
+            'message_id' => $messageId,
+            'from' => $backofficeDeviceUuid,
+            'to' => $recipientDeviceUuid,
+            'filename' => $originalFilenameStored
+        ]);
+        
+        $result = [
+            'status' => 'ok',
+            'message_id' => $messageId,
+            'recipient_device_uuid' => $recipientDeviceUuid
+        ];
+        
+        $response->getBody()->write(json_encode($result));
+        return $response->withStatus(201)->withHeader('Content-Type', 'application/json');
+    }
+
+    /**
+     * Получение списка файлов для торговой точки от backoffice
+     * 
+     * GET /api/v1/exchange/incoming-for-device
+     * Authorization: Bearer <device_uuid>
+     * 
+     * Параметры query:
+     * - limit: количество записей (по умолчанию 50)
+     * - offset: смещение (по умолчанию 0)
+     * 
+     * @param Request $request
+     * @param Response $response
+     * @return Response
+     */
+    public function getIncomingForDevice(Request $request, Response $response): Response
+    {
+        $deviceUuid = $request->getAttribute('device_uuid');
+        
+        // Проверка что это не backoffice (backoffice использует другой эндпоинт)
+        $device = $this->deviceModel->findByDeviceUuid($deviceUuid);
+        if (!$device || $this->isBackofficeDevice($device)) {
+            return $this->errorResponse($response, 'Use /exchange/incoming for backoffice', 400);
+        }
+        
+        $queryParams = $request->getQueryParams();
+        $limit = min((int)($queryParams['limit'] ?? 50), 100);
+        $offset = (int)($queryParams['offset'] ?? 0);
+        
+        $messages = $this->messageModel->getIncomingForDevice($deviceUuid, $limit, $offset);
+        
+        foreach ($messages as &$msg) {
+            $msg['id'] = Uuid::fromBytes($msg['id'])->toString();
+            $msg['sender_uuid'] = $msg['sender_uuid'];
+            
+            if ($msg['file_path']) {
+                $msg['file_url'] = '/api/v1/exchange/files/' . $msg['id'];
+                $msg['filename'] = basename($msg['file_path']);
+            } else {
+                $msg['file_url'] = null;
+                $msg['filename'] = null;
+            }
+            
+            // Декодируем JSON метаданных
+            if (!empty($msg['body'])) {
+                $decoded = json_decode($msg['body'], true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $msg['metadata'] = $decoded;
+                }
+            }
+            
+            // Удаляем сырое тело сообщения из ответа
+            unset($msg['body']);
+        }
+        
+        $response->getBody()->write(json_encode([
+            'total' => count($messages),
+            'limit' => $limit,
+            'offset' => $offset,
+            'items' => $messages
+        ]));
+        
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    /**
+     * Удаление файла после успешного скачивания (для торговой точки)
+     * 
+     * DELETE /api/v1/exchange/files/{message_id}
+     * Authorization: Bearer <device_uuid>
+     * 
+     * @param Request $request
+     * @param Response $response
+     * @param array $args
+     * @return Response
+     */
+    public function deleteFile(Request $request, Response $response, array $args): Response
+    {
+        $deviceUuid = $request->getAttribute('device_uuid');
+        $messageIdStr = $args['id'];
+        
+        try {
+            $messageIdBytes = Uuid::fromString($messageIdStr)->getBytes();
+        } catch (\Exception $e) {
+            return $this->errorResponse($response, 'Invalid message ID', 400);
+        }
+        
+        // Получаем сообщение и проверяем права
+        $msg = $this->messageModel->findForRecipient($messageIdBytes, $deviceUuid);
+        if (!$msg) {
+            return $this->errorResponse($response, 'Message not found', 404);
+        }
+        
+        // Проверка что это не backoffice
+        $device = $this->deviceModel->findByDeviceUuid($deviceUuid);
+        if ($this->isBackofficeDevice($device)) {
+            return $this->errorResponse($response, 'Backoffice should use other endpoint', 400);
+        }
+        
+        // Удаляем сообщение и получаем путь к файлу
+        $filePath = $this->messageModel->deleteAndGetFilePath($messageIdBytes, $deviceUuid);
+        
+        if ($filePath) {
+            // Физическое удаление файла
+            $fullPath = $this->fileService->getFullPath($filePath);
+            if (file_exists($fullPath)) {
+                unlink($fullPath);
+                $this->logger->info('File deleted after download', [
+                    'message_id' => $messageIdStr,
+                    'device_uuid' => $deviceUuid,
+                    'file_path' => $filePath
+                ]);
+            }
+        }
+        
+        $this->logger->info('Message deleted', [
+            'message_id' => $messageIdStr,
+            'device_uuid' => $deviceUuid
+        ]);
+        
+        $response->getBody()->write(json_encode([
+            'status' => 'ok',
+            'message_id' => $messageIdStr,
+            'deleted' => true
+        ]));
+        
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    /**
      * Отправка файла из торговой точки в backoffice
      * 
      * POST /api/v1/exchange/send
@@ -95,6 +341,7 @@ class ExchangeController
         
         // Сохранение файла
         $filePath = null;
+        $originalFilenameStored = null;
         if (isset($uploadedFiles['file']) && $uploadedFiles['file']->getError() === UPLOAD_ERR_OK) {
             // Проверка расширения файла - только XML и DBF
             $originalFilename = $uploadedFiles['file']->getClientFilename();
@@ -103,14 +350,17 @@ class ExchangeController
                 return $this->errorResponse($response, 'Only XML and DBF files are allowed for exchange', 400, -103);
             }
             
-            $filePath = $this->fileService->saveUploadedFile($uploadedFiles['file'], $senderDeviceUuid);
-            if (!$filePath) {
+            $fileResult = $this->fileService->saveUploadedFile($uploadedFiles['file'], $senderDeviceUuid);
+            if (!$fileResult) {
                 $this->logger->warning('Failed to save uploaded file', [
                     'sender' => $senderDeviceUuid,
                     'filename' => $uploadedFiles['file']->getClientFilename()
                 ]);
                 return $this->errorResponse($response, 'Failed to save file. File must be valid XML or DBF, max 10MB, no malicious content.', 400);
             }
+            // fileResult содержит ['path' => ..., 'original_filename' => ...]
+            $filePath = $fileResult['path'];
+            $originalFilenameStored = $fileResult['original_filename'];
         } else {
             return $this->errorResponse($response, 'File is required', 400);
         }
@@ -133,7 +383,7 @@ class ExchangeController
             'message_id' => $messageId,
             'from' => $senderDeviceUuid,
             'license' => $senderLicenseUuid,
-            'filename' => $uploadedFiles['file']->getClientFilename()
+            'filename' => $originalFilenameStored
         ]);
         
         $result = [
@@ -250,13 +500,24 @@ class ExchangeController
             return $this->errorResponse($response, 'File not found on server', 404);
         }
         
+        // Извлекаем оригинальное имя файла из пути (оно хранится после UUID_)
+        $storedFilename = basename($fullPath);
+        // Формат имени: {uuid}_{original_filename}, извлекаем original_filename
+        $underscorePos = strpos($storedFilename, '_');
+        if ($underscorePos !== false) {
+            $originalFilename = substr($storedFilename, $underscorePos + 1);
+        } else {
+            $originalFilename = $storedFilename;
+        }
+        
         // Помечаем сообщение как прочитанное/полученное
         $this->messageModel->markDelivered($messageIdBytes, $backofficeDeviceUuid);
         
         $response = $response->withHeader('Content-Type', mime_content_type($fullPath))
-                             ->withHeader('Content-Disposition', 'attachment; filename="' . basename($fullPath) . '"')
+                             ->withHeader('Content-Disposition', 'attachment; filename="' . $originalFilename . '"')
                              ->withHeader('X-Message-ID', $messageIdStr)
-                             ->withHeader('X-Sender-UUID', $msg['sender_uuid']);
+                             ->withHeader('X-Sender-UUID', $msg['sender_uuid'])
+                             ->withHeader('X-Original-Filename', $originalFilename);
         
         $response->getBody()->write(file_get_contents($fullPath));
         return $response;

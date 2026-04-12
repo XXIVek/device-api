@@ -1,9 +1,25 @@
-```php
-/vendor/
+```
+# Compiled and build artifacts
+*.os
+
+# Dependencies
+vendor/
 composer.lock
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Environment
 .env
 .env.local
-*.log
+*.env.*
+
+# Editors
+.vscode/
+.idea/
+
+# OS generated files
 .DS_Store
 Thumbs.db
 ```
