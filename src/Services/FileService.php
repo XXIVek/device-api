@@ -16,10 +16,13 @@ class FileService
     // Конфигурация валидации файлов
     private const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
     
-    // Для обмена лицензиями разрешены только XML файлы
+    // Для обмена разрешены XML и DBF файлы
     private const ALLOWED_MIME_TYPES = [
         'application/xml' => ['xml'],
         'text/xml' => ['xml'],
+        'application/x-dbf' => ['dbf'],
+        'application/dbase' => ['dbf'],
+        'application/vnd.dbf' => ['dbf'],
     ];
     
     // Запрещённые расширения (потенциально опасные)
@@ -136,6 +139,13 @@ class FileService
             }
         }
         
+        // 7. Проверка валидности DBF (базовая)
+        if ($extension === 'dbf') {
+            if (!$this->isValidDbf($uploadedFile)) {
+                return false;
+            }
+        }
+        
         return true;
     }
     
@@ -161,6 +171,40 @@ class FileService
         libxml_clear_errors();
         
         return $result;
+    }
+    
+    /**
+     * Проверка валидности DBF файла
+     * DBF файлы имеют специфическую структуру заголовка
+     */
+    private function isValidDbf(UploadedFileInterface $uploadedFile): bool
+    {
+        $stream = $uploadedFile->getStream();
+        $stream->rewind();
+        $header = $stream->read(32); // Читаем заголовок (32 байта минимум)
+        $stream->rewind();
+        
+        // Пустой файл не валиден
+        if (strlen($header) < 32) {
+            return false;
+        }
+        
+        // Проверка первого байта - версия DBF
+        // 0x03 - dBASE III, 0x30 - dBASE III PLUS, 0x43 - dBASE IV, 0x8B - dBASE IV с memo, 0xF5 - FoxPro с memo
+        $firstByte = ord($header[0]);
+        $validVersions = [0x03, 0x30, 0x43, 0x8B, 0xF5, 0x31, 0x32, 0x42, 0x63, 0x83, 0x87, 0xCB, 0xE5, 0xF4];
+        
+        if (!in_array($firstByte, $validVersions)) {
+            return false;
+        }
+        
+        // Проверка что файл не пустой и имеет минимальную структуру
+        $fileSize = $uploadedFile->getSize();
+        if ($fileSize === null || $fileSize < 32) {
+            return false;
+        }
+        
+        return true;
     }
     
     /**

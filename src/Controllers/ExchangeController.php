@@ -96,11 +96,11 @@ class ExchangeController
         // Сохранение файла
         $filePath = null;
         if (isset($uploadedFiles['file']) && $uploadedFiles['file']->getError() === UPLOAD_ERR_OK) {
-            // Проверка расширения файла - только XML
+            // Проверка расширения файла - только XML и DBF
             $originalFilename = $uploadedFiles['file']->getClientFilename();
             $extension = strtolower(pathinfo($originalFilename, PATHINFO_EXTENSION));
-            if ($extension !== 'xml') {
-                return $this->errorResponse($response, 'Only XML files are allowed for exchange', 400, -103);
+            if ($extension !== 'xml' && $extension !== 'dbf') {
+                return $this->errorResponse($response, 'Only XML and DBF files are allowed for exchange', 400, -103);
             }
             
             $filePath = $this->fileService->saveUploadedFile($uploadedFiles['file'], $senderDeviceUuid);
@@ -109,7 +109,7 @@ class ExchangeController
                     'sender' => $senderDeviceUuid,
                     'filename' => $uploadedFiles['file']->getClientFilename()
                 ]);
-                return $this->errorResponse($response, 'Failed to save file. File must be valid XML, max 10MB, no malicious content.', 400);
+                return $this->errorResponse($response, 'Failed to save file. File must be valid XML or DBF, max 10MB, no malicious content.', 400);
             }
         } else {
             return $this->errorResponse($response, 'File is required', 400);
