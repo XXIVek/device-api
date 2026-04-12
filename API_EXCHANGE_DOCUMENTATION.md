@@ -11,7 +11,8 @@
 1. **Однонаправленная передача**: Торговые точки отправляют файлы только в Backoffice
 2. **Аутентификация**: Все запросы требуют заголовок `Authorization: Bearer <device_uuid>`
 3. **Валидация файлов**: Проверяется размер (макс. 10MB), тип, расширение и содержимое
-4. **Статусы обработки**: Backoffice может обновлять статус обработки файла
+4. **Поддерживаемые форматы**: XML и DBF файлы
+5. **Статусы обработки**: Backoffice может обновлять статус обработки файла
 
 ---
 
@@ -55,7 +56,7 @@ Authorization: Bearer <device_uuid_торговой_точки>
 Content-Type: multipart/form-data
 
 Form data:
-- file: <бинарный файл>
+- file: <бинарный файл (.xml или .dbf)>
 - message: {"doc_type": "UPD", "doc_number": "123", "doc_date": "2025-01-15"}
 - subject: УПД №123 от 15.01.2025 (опционально)
 ```
@@ -70,7 +71,7 @@ Form data:
 ```
 
 **Коды ошибок:**
-- `400` - Файл не прошёл валидацию или отсутствует поле `message`
+- `400` - Файл не прошёл валидацию, неверный формат (требуется XML или DBF), или отсутствует поле `message`
 - `403` - Лицензия отправителя не активна
 - `500` - Backoffice не настроен в системе
 
@@ -127,7 +128,7 @@ Authorization: Bearer <device_uuid_backoffice>
       "sender_uuid": "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
       "subject": "УПД №123 от 15.01.2025",
       "file_url": "/api/v1/exchange/files/a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-      "filename": "upd_123.xml",
+      "filename": "upd_123.xml или data.dbf",
       "metadata": {
         "doc_type": "UPD",
         "doc_number": "123",
@@ -195,15 +196,17 @@ Content-Type: application/json
 
 | Тип | Расширения | MIME-типы |
 |-----|------------|-----------|
-| Изображения | jpg, jpeg, png, gif | image/jpeg, image/png, image/gif |
-| Документы | pdf, txt, doc, docx, xls, xlsx | application/pdf, text/plain, application/msword, ... |
-| Архивы | zip | application/zip, application/x-zip-compressed |
+| XML документы | xml | application/xml, text/xml |
+| DBF файлы | dbf | application/x-dbf, application/dbase, application/vnd.dbf |
 
 ### Ограничения
 
 - **Максимальный размер:** 10 MB
-- **Запрещённые расширения:** php, exe, bat, sh, cgi, pl, py, js, vbs, cmd, ps1, hta, msi, dll, com, scr, pif, jar, wsf, wsc
-- **Проверка содержимого:** Сверяется MIME-тип с расширением, проверяются вредоносные сигнатуры
+- **Запрещённые расширения:** php, exe, bat, sh, cgi, pl, py, js, vbs, cmd, ps1, hta, msi, dll, com, scr, pif, jar, wsf, wsc, jpg, jpeg, png, gif, pdf, txt, doc, docx, xls, xlsx, zip
+- **Проверка содержимого:** 
+  - Для XML: проверяется валидность XML структуры, отсутствие XXE атак
+  - Для DBF: проверяется заголовок файла (версии dBASE III/IV, FoxPro)
+- **Сверка MIME-типа с расширением**
 
 ---
 
