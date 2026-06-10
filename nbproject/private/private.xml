@@ -10,9 +10,6 @@
             <file>file:/C:/WebDev/www/device_api/src/Models/Message.php</file>
             <file>file:/C:/WebDev/www/device_api/src/Services/FileService.php</file>
             <file>file:/C:/WebDev/www/device_api/src/Controllers/MessageController.php</file>
-            <file>file:/C:/WebDev/www/device_api/tests/deviceA_send.php</file>
-            <file>file:/C:/WebDev/www/device_api/tests/deviceB_list.php</file>
-            <file>file:/C:/WebDev/www/device_api/tests/deviceB_delete.php</file>
             <file>file:/C:/WebDev/www/device_api/public/apimain.php</file>
             <file>file:/C:/WebDev/www/device_api/public/.htaccess</file>
         </group>

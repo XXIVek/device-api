@@ -88,7 +88,7 @@ $container->set(AuthMiddleware::class, function ($container) {
 // Фабрика приложения - устанавливаем контейнер
 AppFactory::setContainer($container);
 $app = AppFactory::create();
-$app->setBasePath('/device_api/public');
+//$app->setBasePath('/device_api/public');
 // Добавляем middleware для Twig (будет добавлять переменные в ответ)
 $app->add(TwigMiddleware::create($app, $container->get(Twig::class)));
 
