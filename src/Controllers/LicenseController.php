@@ -102,7 +102,7 @@ class LicenseController
             ]
         ];
 
-        $response->getBody()->write(json_encode($responseData));
+        $response->getBody()->write(json_encode($responseData, JSON_UNESCAPED_UNICODE));
         return $response->withStatus(201)->withHeader('Content-Type', 'application/json');
     }
 
@@ -136,7 +136,7 @@ class LicenseController
             ];
  //       }
 
-        $response->getBody()->write(json_encode($result));
+        $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
         return $response->withHeader('Content-Type', 'application/json');
     }
 
