@@ -151,7 +151,7 @@ class ExchangeController
             'recipient_device_uuid' => $recipientDeviceUuid
         ];
         
-        $response->getBody()->write(json_encode($result));
+        $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
         return $response->withStatus(201)->withHeader('Content-Type', 'application/json');
     }
 
@@ -214,7 +214,7 @@ class ExchangeController
             'limit' => $limit,
             'offset' => $offset,
             'items' => $messages
-        ]));
+        ], JSON_UNESCAPED_UNICODE));
         
         return $response->withHeader('Content-Type', 'application/json');
     }
@@ -278,7 +278,7 @@ class ExchangeController
             'status' => 'ok',
             'message_id' => $messageIdStr,
             'deleted' => true
-        ]));
+        ], JSON_UNESCAPED_UNICODE));
         
         return $response->withHeader('Content-Type', 'application/json');
     }
@@ -392,7 +392,7 @@ class ExchangeController
             'backoffice_device_uuid' => $recipientUuid
         ];
         
-        $response->getBody()->write(json_encode($result));
+        $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
         return $response->withStatus(201)->withHeader('Content-Type', 'application/json');
     }
 
@@ -457,7 +457,7 @@ class ExchangeController
             'limit' => $limit,
             'offset' => $offset,
             'items' => $messages
-        ]));
+        ], JSON_UNESCAPED_UNICODE));
         
         return $response->withHeader('Content-Type', 'application/json');
     }
@@ -582,7 +582,7 @@ class ExchangeController
             'status' => 'ok',
             'message_id' => $messageIdStr,
             'exchange_status' => $status
-        ]));
+        ], JSON_UNESCAPED_UNICODE));
         
         return $response->withHeader('Content-Type', 'application/json');
     }
