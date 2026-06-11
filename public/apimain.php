@@ -89,21 +89,21 @@ $container->set(AuthMiddleware::class, function ($container) {
 AppFactory::setContainer($container);
 $app = AppFactory::create();
 $app->setBasePath('/device_api/public');
-// Добавляем middleware для Twig (будет добавлять переменные в ответ)
-$app->add(TwigMiddleware::create($app, $container->get(Twig::class)));
-
-
-// Тестовый маршрут для проверки routes
-$app->get('/test/', function ($request, $response) {
-    $response->getBody()->write('test ok');
-    return $response;
-});
 
 // Добавляем middleware для разбора тела запроса (JSON, form data)
 $app->addBodyParsingMiddleware();
 
 // Добавляем middleware для обработки ошибок (подробный режим для разработки)
 $errorMiddleware = $app->addErrorMiddleware(true, true, true);
+
+// Добавляем middleware для Twig (будет добавлять переменные в ответ)
+$app->add(TwigMiddleware::create($app, $container->get(Twig::class)));
+
+// Тестовый маршрут для проверки routes
+$app->get('/test/', function ($request, $response) {
+    $response->getBody()->write('test ok');
+    return $response;
+});
 
 // Регистрируем маршруты через routes.php
 (require __DIR__ . '/../src/routes.php')($app);
