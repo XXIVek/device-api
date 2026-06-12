@@ -82,8 +82,14 @@ class LicenseController
             $licenseUuid = $this->licenseModel->create($result, $orgId);
         }
 
-        // Создаём устройство для этого клиента
-        $deviceUuid = $this->deviceModel->create($licenseUuid,$deviceName);
+        // Проверяем, существует ли устройство с таким именем для этой лицензии
+        $existingDevice = $this->deviceModel->findByLicenseUuidAndName($licenseUuid, $deviceName);
+        if ($existingDevice) {
+            $deviceUuid = $existingDevice['device_uuid'];
+        } else {
+            // Создаём устройство для этого клиента
+            $deviceUuid = $this->deviceModel->create($licenseUuid, $deviceName);
+        }
 
         $this->logger->info('License registered', [
             'license_number' => $result['licenseNumberFromPlain'],
