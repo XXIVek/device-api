@@ -88,7 +88,8 @@ $container->set(AuthMiddleware::class, function ($container) {
 // Фабрика приложения - устанавливаем контейнер
 AppFactory::setContainer($container);
 $app = AppFactory::create();
-$app->setBasePath('/device_api/public');
+// Базовый путь не указывается, так как DocumentRoot настроен на папку public
+// $app->setBasePath('/device_api/public');
 
 // Добавляем middleware для разбора тела запроса (JSON, form data)
 $app->addBodyParsingMiddleware();
