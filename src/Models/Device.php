@@ -47,4 +47,11 @@ class Device
         $stmt->execute([$id]);
         return $stmt->fetch();
     }
+
+    public function findByLicenseUuidAndName($licenseUuid, $name)
+    {
+        $stmt = $this->db->prepare('SELECT * FROM devices WHERE license_uuid = ? AND name = ?');
+        $stmt->execute([$licenseUuid, $name]);
+        return $stmt->fetch();
+    }
 }
