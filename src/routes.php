@@ -56,6 +56,15 @@ return function($app) {
         $group->get('/outgoing/{message_id}/status', [App\Controllers\ExchangeController::class, 'getOutgoingStatus']);
     })->add(AuthMiddleware::class);
 
+    // Группа защищённых маршрутов для устройств
+    $app->group('/api/v1/devices', function (RouteCollectorProxy $group) {
+        // Получение статуса устройства
+        $group->get('/status', [App\Controllers\ExchangeController::class, 'getDeviceStatus']);
+        
+        // Обновление статуса устройства
+        $group->put('/status', [App\Controllers\ExchangeController::class, 'updateDeviceStatus']);
+    })->add(AuthMiddleware::class);
+
     // Группа защищённых маршрутов
     $app->group('/api/v1', function (RouteCollectorProxy $group) {
 

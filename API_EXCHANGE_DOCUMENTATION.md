@@ -357,3 +357,104 @@ Authorization: Bearer <device_uuid>
 - Обновление статусов
 
 Логи доступны в админ-панели и в файлах `/logs/app.log`.
+
+---
+
+## Сценарий 5: Управление статусом устройства
+
+### Шаг 1: Получение статуса устройства
+
+**GET** `/api/v1/devices/status`
+
+**Заголовки:**
+```
+Authorization: Bearer <device_uuid>
+```
+
+**Ответ при успехе (200):**
+```json
+{
+  "device_uuid": "550e8400-e29b-41d4-a716-446655440000",
+  "status": {
+    "pairing": true,
+    "konf": 5,
+    "bd": 3,
+    "input": 2,
+    "output": 4
+  }
+}
+```
+
+**Поля статуса:**
+| Поле | Тип | Описание |
+|------|-----|----------|
+| pairing | boolean | Сопряжение (true/false) |
+| konf | integer | Тип конфигурации (-9..9) |
+| bd | integer | Состояние базы данных (-9..9) |
+| input | integer | Состояние входящих данных (-9..9) |
+| output | integer | Состояние исходящих данных (-9..9) |
+
+**Коды ошибок:**
+| Код | Сообщение | Описание |
+|-----|-----------|----------|
+| 404 | Device not found | Устройство не найдено |
+| 404 | Device status not found | Статус устройства не найден |
+
+---
+
+### Шаг 2: Обновление статуса устройства
+
+**PUT** `/api/v1/devices/status`
+
+**Заголовки:**
+```
+Authorization: Bearer <device_uuid>
+Content-Type: application/json
+```
+
+**Тело запроса (JSON):**
+```json
+{
+  "pairing": true,
+  "konf": 5,
+  "bd": 3,
+  "input": 2,
+  "output": 4
+}
+```
+
+Все поля необязательны. Можно передавать только те поля, которые нужно обновить.
+
+**Пример запроса (curl):**
+```bash
+curl -X PUT https://api.example.com/api/v1/devices/status \
+  -H "Authorization: Bearer <device_uuid>" \
+  -H "Content-Type: application/json" \
+  -d '{"pairing":true,"konf":5,"bd":3}'
+```
+
+**Ответ при успехе (200):**
+```json
+{
+  "status": "ok",
+  "device_uuid": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+**Коды ошибок:**
+| Код | Сообщение | Описание |
+|-----|-----------|----------|
+| 400 | Request body must contain status data | Пустое тело запроса |
+| 404 | Device not found | Устройство не найдено |
+| 500 | Failed to update device status | Ошибка обновления статуса |
+
+---
+
+## Примеры тестовых скриптов
+
+В папке `tests/` доступны тестовые скрипты для проверки новых эндпоинтов:
+
+- `test_device_status.php` - тест GET /api/v1/devices/status
+- `test_update_device_status.php` - тест PUT /api/v1/devices/status
+
+Перед использованием замените `YOUR_DEVICE_UUID` на актуальный UUID устройства.

@@ -701,6 +701,85 @@ class ExchangeController
         return true;
     }
 
+    /**
+     * Получение статуса устройства
+     * 
+     * GET /api/v1/devices/status
+     * Authorization: Bearer <device_uuid>
+     * 
+     * @param Request $request
+     * @param Response $response
+     * @return Response
+     */
+    public function getDeviceStatus(Request $request, Response $response): Response
+    {
+        $deviceUuid = $request->getAttribute('device_uuid');
+        
+        $device = $this->deviceModel->findByDeviceUuid($deviceUuid);
+        if (!$device) {
+            return $this->errorResponse($response, 'Device not found', 404);
+        }
+        
+        $status = $this->deviceModel->getStatus($deviceUuid);
+        if (!$status) {
+            return $this->errorResponse($response, 'Device status not found', 404);
+        }
+        
+        $response->getBody()->write(json_encode([
+            'device_uuid' => $deviceUuid,
+            'status' => $status
+        ], JSON_UNESCAPED_UNICODE));
+        
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
+    /**
+     * Обновление статуса устройства
+     * 
+     * PUT /api/v1/devices/status
+     * Authorization: Bearer <device_uuid>
+     * Content-Type: application/json
+     * 
+     * Body:
+     * - pairing: bool (опционально)
+     * - konf: int (опционально)
+     * - bd: int (опционально)
+     * - input: int (опционально)
+     * - output: int (опционально)
+     * 
+     * @param Request $request
+     * @param Response $response
+     * @return Response
+     */
+    public function updateDeviceStatus(Request $request, Response $response): Response
+    {
+        $deviceUuid = $request->getAttribute('device_uuid');
+        
+        $device = $this->deviceModel->findByDeviceUuid($deviceUuid);
+        if (!$device) {
+            return $this->errorResponse($response, 'Device not found', 404);
+        }
+        
+        $data = $request->getParsedBody();
+        
+        if (!is_array($data) || empty($data)) {
+            return $this->errorResponse($response, 'Request body must contain status data', 400);
+        }
+        
+        $success = $this->deviceModel->updateStatus($deviceUuid, $data);
+        
+        if (!$success) {
+            return $this->errorResponse($response, 'Failed to update device status', 500);
+        }
+        
+        $response->getBody()->write(json_encode([
+            'status' => 'ok',
+            'device_uuid' => $deviceUuid
+        ], JSON_UNESCAPED_UNICODE));
+        
+        return $response->withHeader('Content-Type', 'application/json');
+    }
+
     private function errorResponse(Response $response, string $message, int $code, int $errorCode = null): Response
     {
         $data = ['error' => $message];

@@ -13,6 +13,15 @@ class Device
         $this->db = $db;
     }
 
+    /**
+     * Получить экземпляр PDO
+     * @return PDO
+     */
+    public function getDb(): PDO
+    {
+        return $this->db;
+    }
+
     public function create($licenseUuid, $name = null)
     {
         $deviceUuid = Uuid::uuid4()->toString();
