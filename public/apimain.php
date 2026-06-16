@@ -94,6 +94,9 @@ $app = AppFactory::create();
 // Добавляем middleware для разбора тела запроса (JSON, form data)
 $app->addBodyParsingMiddleware();
 
+// Добавляем middleware для маршрутизации - ОБЯЗАТЕЛЬНО перед обработчиками ошибок
+$app->addRoutingMiddleware();
+
 // Добавляем middleware для обработки ошибок (подробный режим для разработки)
 $errorMiddleware = $app->addErrorMiddleware(true, true, true);
 
