@@ -54,4 +54,94 @@ class Device
         $stmt->execute([$licenseUuid, $name]);
         return $stmt->fetch();
     }
+
+    /**
+     * Обновить состояние устройства
+     * @param string $deviceUuid UUID устройства
+     * @param array $data Массив данных состояния
+     * @return bool Успешность обновления
+     */
+    public function updateStatus($deviceUuid, $data)
+    {
+        $fields = [];
+        $values = [];
+        
+        if (isset($data['pairing'])) {
+            $fields[] = 'pairing = ?';
+            $values[] = (int)$data['pairing'];
+        }
+        if (isset($data['konf'])) {
+            $fields[] = 'konf = ?';
+            $values[] = (int)$data['konf'];
+        }
+        if (isset($data['bd'])) {
+            $fields[] = 'bd = ?';
+            $values[] = (int)$data['bd'];
+        }
+        if (isset($data['input'])) {
+            $fields[] = 'input = ?';
+            $values[] = (int)$data['input'];
+        }
+        if (isset($data['output'])) {
+            $fields[] = 'output = ?';
+            $values[] = (int)$data['output'];
+        }
+        
+        if (empty($fields)) {
+            return false;
+        }
+        
+        $values[] = $deviceUuid;
+        $sql = 'UPDATE devices SET ' . implode(', ', $fields) . ' WHERE device_uuid = ?';
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute($values);
+    }
+
+    /**
+     * Получить состояние устройства
+     * @param string $deviceUuid UUID устройства
+     * @return array|false Массив состояния или false если устройство не найдено
+     */
+    public function getStatus($deviceUuid)
+    {
+        $stmt = $this->db->prepare('SELECT pairing, konf, bd, input, output FROM devices WHERE device_uuid = ?');
+        $stmt->execute([$deviceUuid]);
+        $result = $stmt->fetch();
+        
+        if (!$result) {
+            return false;
+        }
+        
+        return [
+            'pairing' => (bool)$result['pairing'],
+            'konf' => (int)$result['konf'],
+            'bd' => (int)$result['bd'],
+            'input' => (int)$result['input'],
+            'output' => (int)$result['output']
+        ];
+    }
+
+    /**
+     * Установить состояние устройства
+     * @param string $deviceUuid UUID устройства
+     * @param bool|int $pairing Сопряжение (true/false)
+     * @param int $konf Тип конфигурации (-9..9)
+     * @param int $bd Состояние базы данных (-9..9)
+     * @param int $input Состояние входящих данных (-9..9)
+     * @param int $output Состояние исходящих данных (-9..9)
+     * @return bool Успешность обновления
+     */
+    public function setStatus($deviceUuid, $pairing, $konf, $bd, $input, $output)
+    {
+        $sql = 'UPDATE devices SET pairing = ?, konf = ?, bd = ?, input = ?, output = ? WHERE device_uuid = ?';
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([
+            (int)$pairing,
+            (int)$konf,
+            (int)$bd,
+            (int)$input,
+            (int)$output,
+            $deviceUuid
+        ]);
+    }
 }
