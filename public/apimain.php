@@ -9,6 +9,7 @@ use App\Services\FileService;
 use App\Controllers\MessageController;
 use App\Controllers\LicenseController;
 use App\Controllers\AdminController;
+use App\Controllers\ExchangeController;
 
 session_start(); // для работы сессий администратора
 
@@ -51,6 +52,15 @@ $container->set(LicenseController::class, function ($container) {
 // Управление сообщениями
 $container->set(MessageController::class, function ($container) {
     return new MessageController(
+        $container->get('db'),
+        $container->get(FileService::class),
+        $container->get('logger')
+    );
+});
+
+// Контроллер обмена файлами
+$container->set(ExchangeController::class, function ($container) {
+    return new ExchangeController(
         $container->get('db'),
         $container->get(FileService::class),
         $container->get('logger')
