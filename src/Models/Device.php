@@ -65,6 +65,32 @@ class Device
     }
 
     /**
+     * Найти устройство по UUID
+     * @param string $deviceUuid UUID устройства
+     * @return array|false Данные устройства или false
+     */
+    public function findByUuid($deviceUuid)
+    {
+        $stmt = $this->db->prepare('SELECT * FROM devices WHERE device_uuid = ?');
+        $stmt->execute([$deviceUuid]);
+        return $stmt->fetch();
+    }
+
+    /**
+     * Привязать устройство к лицензии
+     * @param string $deviceUuid UUID устройства
+     * @param string $licenseUuid UUID лицензии
+     * @param string|null $name Имя устройства
+     * @return bool Успешность привязки
+     */
+    public function linkToLicense($deviceUuid, $licenseUuid, $name = null)
+    {
+        $sql = 'UPDATE devices SET license_uuid = ?, name = ? WHERE device_uuid = ?';
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([$licenseUuid, $name, $deviceUuid]);
+    }
+
+    /**
      * Обновить состояние устройства
      * @param string $deviceUuid UUID устройства
      * @param array $data Массив данных состояния
@@ -152,5 +178,44 @@ class Device
             (int)$output,
             $deviceUuid
         ]);
+    }
+
+    /**
+     * Найти устройство по коду активации
+     * @param string $code Код активации
+     * @return array|false Данные устройства или false
+     */
+    public function findByActivationCode($code)
+    {
+        $stmt = $this->db->prepare('SELECT * FROM devices WHERE activation_code = ? AND code_expires_at > NOW()');
+        $stmt->execute([$code]);
+        return $stmt->fetch();
+    }
+
+    /**
+     * Установить код активации для устройства
+     * @param string $deviceUuid UUID устройства
+     * @param string $code Код активации
+     * @param int $expiresInMinutes Время жизни кода в минутах
+     * @return bool Успешность установки
+     */
+    public function setActivationCode($deviceUuid, $code, $expiresInMinutes = 30)
+    {
+        $expiresAt = date('Y-m-d H:i:s', strtotime("+{$expiresInMinutes} minutes"));
+        $sql = 'UPDATE devices SET activation_code = ?, code_expires_at = ? WHERE device_uuid = ?';
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([$code, $expiresAt, $deviceUuid]);
+    }
+
+    /**
+     * Очистить код активации после использования
+     * @param string $deviceUuid UUID устройства
+     * @return bool Успешность очистки
+     */
+    public function clearActivationCode($deviceUuid)
+    {
+        $sql = 'UPDATE devices SET activation_code = NULL, code_expires_at = NULL WHERE device_uuid = ?';
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([$deviceUuid]);
     }
 }

@@ -62,6 +62,45 @@ class License
         return $stmt->fetchAll();
     }
 
+    /**
+     * Найти лицензию по коду активации
+     * @param string $code Код активации
+     * @return array|false Данные лицензии или false
+     */
+    public function findByActivationCode($code)
+    {
+        $stmt = $this->db->prepare('SELECT * FROM licenses WHERE activation_code = ? AND code_expires_at > NOW()');
+        $stmt->execute([$code]);
+        return $stmt->fetch();
+    }
+
+    /**
+     * Установить код активации для лицензии
+     * @param string $uuid UUID лицензии
+     * @param string $code Код активации
+     * @param int $expiresInMinutes Время жизни кода в минутах
+     * @return bool Успешность установки
+     */
+    public function setActivationCode($uuid, $code, $expiresInMinutes = 30)
+    {
+        $expiresAt = date('Y-m-d H:i:s', strtotime("+{$expiresInMinutes} minutes"));
+        $sql = 'UPDATE licenses SET activation_code = ?, code_expires_at = ? WHERE uuid = ?';
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([$code, $expiresAt, $uuid]);
+    }
+
+    /**
+     * Очистить код активации после использования
+     * @param string $uuid UUID лицензии
+     * @return bool Успешность очистки
+     */
+    public function clearActivationCode($uuid)
+    {
+        $sql = 'UPDATE licenses SET activation_code = NULL, code_expires_at = NULL WHERE uuid = ?';
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute([$uuid]);
+    }
+
     public function findById($id)
     {
         $stmt = $this->db->prepare('SELECT * FROM licenses WHERE inn = ?');

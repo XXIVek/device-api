@@ -61,9 +61,15 @@ return function($app) {
         // Получение статуса устройства
         $group->get('/status', [App\Controllers\ExchangeController::class, 'getDeviceStatus']);
         
-        // Обновление статуса устройства
+        // Обновление статуса устройства (с поддержкой активации по коду без токена)
         $group->put('/status', [App\Controllers\ExchangeController::class, 'updateDeviceStatus']);
+        
+        // Генерация кода активации (вызывается из 1С с авторизацией по UUID)
+        $group->post('/{uuid}/generate-code', [App\Controllers\DevicePairingController::class, 'generateCode']);
     })->add(AuthMiddleware::class);
+
+    // Публичный маршрут для активации устройства по коду (Android без токена)
+    $app->post('/api/v1/devices/activate', [App\Controllers\DevicePairingController::class, 'activate']);
 
     // Группа защищённых маршрутов
     $app->group('/api/v1', function (RouteCollectorProxy $group) {
