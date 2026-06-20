@@ -737,7 +737,7 @@ class ExchangeController
      * Обновление статуса устройства
      * 
      * PUT /api/v1/devices/status
-     * Authorization: Bearer <device_uuid> (или без токена при первичной активации)
+     * Authorization: Bearer <device_uuid>
      * Content-Type: application/json
      * 
      * Body:
@@ -753,24 +753,11 @@ class ExchangeController
      */
     public function updateDeviceStatus(Request $request, Response $response): Response
     {
-        // Проверяем, есть ли токен авторизации
+        // Требуем токен авторизации (UUID устройства)
         $deviceUuid = $request->getAttribute('device_uuid');
         
-        // Если токена нет, пытаемся найти устройство по коду активации в теле запроса
         if (!$deviceUuid) {
-            $data = $request->getParsedBody();
-            $activationCode = $data['activation_code'] ?? null;
-            
-            if ($activationCode) {
-                $device = $this->deviceModel->findByActivationCode($activationCode);
-                if ($device) {
-                    $deviceUuid = $device['device_uuid'];
-                }
-            }
-        }
-        
-        if (!$deviceUuid) {
-            return $this->errorResponse($response, 'Device not found or unauthorized', 401);
+            return $this->errorResponse($response, 'Unauthorized. Device UUID token required.', 401);
         }
         
         $device = $this->deviceModel->findByDeviceUuid($deviceUuid);
@@ -784,7 +771,7 @@ class ExchangeController
             return $this->errorResponse($response, 'Request body must contain status data', 400);
         }
         
-        // Если pairing=true, очищаем код активации (код сгорает)
+        // Если pairing=true, очищаем код активации (код сгорает после успешного сопряжения)
         if (isset($data['pairing']) && $data['pairing'] == true) {
             $this->deviceModel->clearActivationCode($deviceUuid);
         }

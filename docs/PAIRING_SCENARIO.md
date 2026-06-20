@@ -33,7 +33,7 @@ Content-Type: application/json
 
 **Запрос:**
 ```
-POST /api/v1/devices/{device_uuid}/generate-code
+POST /api/v1/devices/generate-code
 Authorization: Bearer <device_uuid>
 ```
 
@@ -51,6 +51,7 @@ Authorization: Bearer <device_uuid>
 - Код состоит из 6 символов (цифры и заглавные буквы)
 - Срок действия: 30 минут
 - 1С отображает код пользователю (текстом или QR-кодом)
+- **Важно:** UUID передается только в заголовке Authorization, в URL не требуется
 
 ---
 
@@ -173,8 +174,8 @@ Authorization: Bearer <device_uuid>
  |--[POST /licenses]--------->|                              |
  |<--[license_uuid, device_uuid]-|                          |
  |                            |                              |
- |--[POST /devices/{uuid}/generate-code]->|                  |
- |<--[activation_code]-------|                              |
+ |--[POST /devices/generate-code]->|                  |
+ |<[activation_code]---------|                              |
  |                            |                              |
  |=== Пользователь вводит код в Android =====================>|
  |                            |                              |

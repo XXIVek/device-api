@@ -65,7 +65,8 @@ return function($app) {
         $group->put('/status', [App\Controllers\ExchangeController::class, 'updateDeviceStatus']);
         
         // Генерация кода активации (вызывается из 1С с авторизацией по UUID)
-        $group->post('/{uuid}/generate-code', [App\Controllers\DevicePairingController::class, 'generateCode']);
+        // UUID извлекается из заголовка Authorization: Bearer <uuid>
+        $group->post('/generate-code', [App\Controllers\DevicePairingController::class, 'generateCode']);
     })->add(AuthMiddleware::class);
 
     // Публичный маршрут для активации устройства по коду (Android без токена)
