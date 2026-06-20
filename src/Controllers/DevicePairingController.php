@@ -21,23 +21,24 @@ class DevicePairingController
 
     /**
      * Генерация кода активации для устройства (вызывается из 1С)
-     * POST /api/v1/devices/{uuid}/generate-code
+     * POST /api/v1/devices/generate-code
      * Authorization: Bearer <device_uuid>
+     * UUID извлекается из заголовка авторизации middleware-ем.
      * 
      * @param Request $request
      * @param Response $response
-     * @param array $args
      * @return Response
      */
-    public function generateCode(Request $request, Response $response, array $args): Response
+    public function generateCode(Request $request, Response $response): Response
     {
-        $deviceUuid = $args['uuid'] ?? null;
+        // Извлекаем UUID из атрибута, установленного AuthMiddleware
+        $deviceUuid = $request->getAttribute('device_uuid');
 
         if (!$deviceUuid) {
             return $response->withJson([
                 'success' => false,
-                'error' => 'device_uuid is required'
-            ], 400);
+                'error' => 'Unauthorized. Device UUID not found in token.'
+            ], 401);
         }
 
         // Проверяем существование устройства
