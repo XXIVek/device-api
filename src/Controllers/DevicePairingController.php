@@ -35,7 +35,7 @@ class DevicePairingController
         $deviceUuid = $request->getAttribute('device_uuid');
 
         if (!$deviceUuid) {
-            return $response->withJson([
+            return $this->jsonResponse($response, [
                 'success' => false,
                 'error' => 'Unauthorized. Device UUID not found in token.'
             ], 401);
@@ -44,7 +44,7 @@ class DevicePairingController
         // Проверяем существование устройства
         $device = $this->deviceModel->findByUuid($deviceUuid);
         if (!$device) {
-            return $response->withJson([
+            return $this->jsonResponse($response, [
                 'success' => false,
                 'error' => 'Device not found'
             ], 404);
@@ -57,7 +57,7 @@ class DevicePairingController
         $success = $this->deviceModel->setActivationCode($deviceUuid, $code, 30);
 
         if (!$success) {
-            return $response->withJson([
+            return $this->jsonResponse($response, [
                 'success' => false,
                 'error' => 'Failed to generate activation code'
             ], 500);
@@ -69,13 +69,19 @@ class DevicePairingController
         ]);
 
         // Возвращаем код и QR-строку (для отображения в 1С)
-        return $response->withJson([
+        return $this->jsonResponse($response, [
             'success' => true,
             'activation_code' => $code,
             'qr_string' => "PAIR:$code", // Формат для QR-кода
             'expires_in' => 1800, // 30 минут в секундах
             'device_uuid' => $deviceUuid
         ], 200);
+    }
+
+    private function jsonResponse(Response $response, $data, $status = 200): Response
+    {
+        $response->getBody()->write(json_encode($data));
+        return $response->withStatus($status)->withHeader('Content-Type', 'application/json');
     }
 
     /**
@@ -94,7 +100,7 @@ class DevicePairingController
 
         // Валидация входных данных
         if (!$activationCode) {
-            return $response->withJson([
+            return $this->jsonResponse($response, [
                 'success' => false,
                 'error' => 'activation_code is required'
             ], 400);
@@ -103,7 +109,7 @@ class DevicePairingController
         // Ищем устройство по коду активации
         $device = $this->deviceModel->findByActivationCode($activationCode);
         if (!$device) {
-            return $response->withJson([
+            return $this->jsonResponse($response, [
                 'success' => false,
                 'error' => 'Invalid or expired activation code'
             ], 404);
@@ -117,7 +123,7 @@ class DevicePairingController
         ]);
 
         // Возвращаем UUID устройства (код еще не сгорает, это произойдет при отправке статуса с paired=true)
-        return $response->withJson([
+        return $this->jsonResponse($response, [
             'success' => true,
             'device_uuid' => $deviceUuid,
             'message' => 'Use this UUID as Bearer token for subsequent requests'
