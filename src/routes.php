@@ -5,6 +5,7 @@ use App\Controllers\LicenseController;
 use App\Middleware\AuthMiddleware;
 use App\Controllers\AdminController;
 use App\Middleware\AdminAuthMiddleware;
+use App\Controllers\DevicePairingController;
 
 return function($app) {
 

@@ -10,6 +10,7 @@ use App\Controllers\MessageController;
 use App\Controllers\LicenseController;
 use App\Controllers\AdminController;
 use App\Controllers\ExchangeController;
+use App\Controllers\DevicePairingController;
 
 session_start(); // для работы сессий администратора
 
@@ -63,6 +64,14 @@ $container->set(ExchangeController::class, function ($container) {
     return new ExchangeController(
         $container->get('db'),
         $container->get(FileService::class),
+        $container->get('logger')
+    );
+});
+
+// Контроллер сопряжения устройств
+$container->set(DevicePairingController::class, function ($container) {
+    return new DevicePairingController(
+        $container->get('db'),
         $container->get('logger')
     );
 });
