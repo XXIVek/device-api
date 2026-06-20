@@ -1,49 +1,49 @@
+```php
+# Compiled and build artifacts
+*.pyc
+__pycache__/
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.a
+*.out
+
 # Dependencies
-vendor/
-
-# Logs
-*.log
-
-# Environment
+node_modules/
+venv/
+.venv/
 .env
 .env.local
 .env.*
 
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Build artifacts
-build/
-dist/
-*.phar
-*.so
-*.o
-*.obj
-
-# Cache
-.cache/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
-# Testing
-.coverage
-coverage/
-htmlcov/
-
-# Temporary files
+# Logs and temp files
+*.log
 *.tmp
-*.temp
 *.swp
 *.swo
 
-# Compression
+# Editors
+.vscode/
+.idea/
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Build systems
+build/
+dist/
+target/
+.gradle/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Compressed files
 *.zip
 *.gz
 *.tar
@@ -66,3 +66,4 @@ htmlcov/
 *.tar.bz2
 *.tar.xz
 *.tar.zst
+```
