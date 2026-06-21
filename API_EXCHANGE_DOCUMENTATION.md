@@ -404,7 +404,7 @@ Authorization: Bearer <device_uuid>
 
 ### Шаг 2: Обновление статуса устройства
 
-**PUT** `/api/v1/devices/status`
+**POST** `/api/v1/devices/status`
 
 **Заголовки:**
 ```
@@ -427,7 +427,7 @@ Content-Type: application/json
 
 **Пример запроса (curl):**
 ```bash
-curl -X PUT https://api.example.com/api/v1/devices/status \
+curl -X POST https://api.example.com/api/v1/devices/status \
   -H "Authorization: Bearer <device_uuid>" \
   -H "Content-Type: application/json" \
   -d '{"pairing":true,"konf":5,"bd":3}'
@@ -455,6 +455,6 @@ curl -X PUT https://api.example.com/api/v1/devices/status \
 В папке `tests/` доступны тестовые скрипты для проверки новых эндпоинтов:
 
 - `test_device_status.php` - тест GET /api/v1/devices/status
-- `test_update_device_status.php` - тест PUT /api/v1/devices/status
+- `test_update_device_status.php` - тест POST /api/v1/devices/status
 
 Перед использованием замените `YOUR_DEVICE_UUID` на актуальный UUID устройства.
