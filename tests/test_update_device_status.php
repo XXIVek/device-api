@@ -1,6 +1,6 @@
 <?php
 /**
- * Тестовый скрипт для проверки эндпоинта PUT /api/v1/devices/status
+ * Тестовый скрипт для проверки эндпоинта POST /api/v1/devices/status
  * 
  * Использование:
  * 1. Замените YOUR_DEVICE_UUID на актуальный device_uuid
@@ -8,7 +8,7 @@
  * 3. Запустите через curl или браузер
  * 
  * Пример запуска через curl:
- * curl -X PUT "http://localhost/device_api/public/api/v1/devices/status" \
+ * curl -X POST "http://localhost/device_api/public/api/v1/devices/status" \
  *   -H "Authorization: Bearer YOUR_DEVICE_UUID" \
  *   -H "Content-Type: application/json" \
  *   -d '{"pairing":true,"konf":5,"bd":3,"input":2,"output":4}'
@@ -29,7 +29,7 @@ $statusData = [
 ];
 
 $ch = curl_init($url);
-curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
+curl_setopt($ch, CURLOPT_POST, true);
 curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($statusData));
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_HTTPHEADER, [

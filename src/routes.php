@@ -63,7 +63,7 @@ return function($app) {
         $group->get('/status', [App\Controllers\ExchangeController::class, 'getDeviceStatus']);
         
         // Обновление статуса устройства (с поддержкой активации по коду без токена)
-        $group->put('/status', [App\Controllers\ExchangeController::class, 'updateDeviceStatus']);
+        $group->post('/status', [App\Controllers\ExchangeController::class, 'updateDeviceStatus']);
         
         // Генерация кода активации (вызывается из 1С с авторизацией по UUID)
         // UUID извлекается из заголовка Authorization: Bearer <uuid>

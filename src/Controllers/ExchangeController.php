@@ -736,7 +736,7 @@ class ExchangeController
     /**
      * Обновление статуса устройства
      * 
-     * PUT /api/v1/devices/status
+     * POST /api/v1/devices/status
      * Authorization: Bearer <device_uuid>
      * Content-Type: application/json
      * 
