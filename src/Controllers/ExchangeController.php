@@ -647,6 +647,24 @@ class ExchangeController
         // Перенаправляем на универсальный метод download
         return $this->download($request, $response);
     }
+
+    /**
+     * Получить входящие сообщения для Backoffice
+     * 
+     * GET /api/v1/exchange/incoming
+     * Authorization: Bearer <backoffice_device_uuid>
+     * Query params: sender_uuid (optional), limit, offset
+     * 
+     * @param Request $request
+     * @param Response $response
+     * @return Response
+     */
+    public function getIncomingMessages(Request $request, Response $response): Response
+    {
+        $backofficeDeviceUuid = $request->getAttribute('device_uuid');
+        
+        // Проверка что устройство - backoffice
+        if (!$this->deviceModel->isBackoffice($backofficeDeviceUuid)) {
             return $this->errorResponse($response, 'Access denied: backoffice only', 403);
         }
         
