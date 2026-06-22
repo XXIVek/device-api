@@ -234,7 +234,7 @@ class ExchangeController
         $result = [
             'status' => 'success',
             'filename' => $originalFilenameStored,
-            'message_id' => Uuid::fromBytes($messageId)->toString(),
+            'message_id' => $messageId,
             'items_count' => count($data)
         ];
         
