@@ -1,34 +1,3 @@
-```
-# Compiled and build artifacts
-*.pyc
-__pycache__/
-*.o
-*.obj
-*.log
-*.tmp
-*.swp
-
-# Dependencies
-vendor/
-composer.lock
-
-# Environment
-.env
-.env.local
-.env.*
-
-# Editors
-.vscode/
-.idea/
-
-# Coverage reports
-coverage/
-htmlcov/
-.coverage
-
-# Logs
-*.log
-
-# Temporary files
-*.tmp
-```
+(docs/API_EXCHANGE_DOCUMENTATION.md
+docs/SCENARIO_1C_TSD_EXCHANGE.md
+API_EXCHANGE_DOCUMENTATION.md
