@@ -38,6 +38,201 @@ class ExchangeController
     }
 
     /**
+     * Загрузка данных из 1С для передачи на ТСД
+     * 
+     * POST /api/v1/exchange/incoming
+     * Authorization: Bearer <device_uuid>
+     * Content-Type: application/json
+     * X-Filename: имя файла (опционально)
+     * 
+     * Тело запроса: плоский массив объектов с данными для ТСД
+     * Пример: [{"Код": "123", "ТипШК": "EAN13", "Наименование": "Товар 1", "Цена": 100.00, "Колво": 10}, ...]
+     * 
+     * @param Request $request
+     * @param Response $response
+     * @return Response
+     */
+    public function uploadFrom1C(Request $request, Response $response): Response
+    {
+        $senderDeviceUuid = $request->getAttribute('device_uuid');
+        
+        // Проверка что это не backoffice (1С отправляет данные)
+        $senderDevice = $this->deviceModel->findByDeviceUuid($senderDeviceUuid);
+        if (!$senderDevice || $this->isBackofficeDevice($senderDevice)) {
+            return $this->errorResponse($response, 'Access denied: device only', 403);
+        }
+        
+        // Проверка активности лицензии отправителя
+        $senderLicense = $this->licenseModel->findByUuid($senderDevice['license_uuid']);
+        if (!$senderLicense || !$this->isLicenseActive($senderLicense)) {
+            $this->logger->warning('Attempt to upload from inactive license', [
+                'device_uuid' => $senderDeviceUuid,
+                'license_uuid' => $senderDevice['license_uuid']
+            ]);
+            return $this->errorResponse($response, 'Sender license is not active', 403, -101);
+        }
+        
+        // Получаем тело запроса (JSON)
+        $body = $request->getBody()->getContents();
+        if (empty($body)) {
+            return $this->errorResponse($response, 'Request body is required', 400);
+        }
+        
+        // Валидация JSON
+        $data = json_decode($body, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return $this->errorResponse($response, 'Invalid JSON format', 400);
+        }
+        
+        // Проверяем что это массив
+        if (!is_array($data)) {
+            return $this->errorResponse($response, 'Request body must be a JSON array', 400);
+        }
+        
+        // Получаем имя файла из заголовка или генерируем
+        $filename = $request->getHeaderLine('X-Filename');
+        if (empty($filename)) {
+            $filename = 'inventory_' . date('Y-m-d_H-i-s') . '.json';
+        }
+        
+        // Сохраняем JSON файл
+        $backofficeDevice = $this->getBackofficeDevice();
+        if (!$backofficeDevice) {
+            $this->logger->error('Backoffice device not found in database');
+            return $this->errorResponse($response, 'Backoffice not configured', 500, -102);
+        }
+        
+        $recipientUuid = $backofficeDevice['device_uuid'];
+        
+        // Сохранение файла
+        try {
+            $fileResult = $this->saveJsonFile($body, $senderDeviceUuid, $filename);
+            if (!$fileResult) {
+                $this->logger->warning('Failed to save uploaded JSON file', [
+                    'sender' => $senderDeviceUuid,
+                    'filename' => $filename
+                ]);
+                return $this->errorResponse($response, 'Failed to save file', 400);
+            }
+            $filePath = $fileResult['path'];
+            $originalFilenameStored = $fileResult['original_filename'];
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to save JSON file', ['error' => $e->getMessage()]);
+            return $this->errorResponse($response, 'Failed to save file', 500);
+        }
+        
+        // Создаём сообщение в базе данных
+        $messageJson = json_encode([
+            'type' => 'inventory_data',
+            'items_count' => count($data),
+            'uploaded_at' => date('c')
+        ], JSON_UNESCAPED_UNICODE);
+        
+        $subject = 'Данные инвентаризации от 1С';
+        
+        try {
+            $messageId = $this->messageModel->create(
+                $senderDeviceUuid,
+                $recipientUuid,
+                $subject,
+                $messageJson,
+                $filePath
+            );
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to create message', ['error' => $e->getMessage()]);
+            return $this->errorResponse($response, 'Database error', 500);
+        }
+        
+        $this->logger->info('Data uploaded from 1C for TSD', [
+            'message_id' => $messageId,
+            'from' => $senderDeviceUuid,
+            'to' => $recipientUuid,
+            'filename' => $originalFilenameStored,
+            'items_count' => count($data)
+        ]);
+        
+        $result = [
+            'status' => 'success',
+            'filename' => $originalFilenameStored,
+            'message_id' => Uuid::fromBytes($messageId)->toString(),
+            'items_count' => count($data)
+        ];
+        
+        $response->getBody()->write(json_encode($result, JSON_UNESCAPED_UNICODE));
+        return $response->withStatus(201)->withHeader('Content-Type', 'application/json');
+    }
+    
+    /**
+     * Сохранить JSON файл от 1С
+     * Возвращает массив с относительным путем и оригинальным именем файла или null в случае ошибки.
+     */
+    private function saveJsonFile(string $content, string $deviceId, string $filename): ?array
+    {
+        // Проверка размера файла
+        $size = strlen($content);
+        if ($size > 10 * 1024 * 1024) { // 10 MB
+            return null;
+        }
+        
+        // Проверка что контент валидный JSON
+        $decoded = json_decode($content, true);
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+            return null;
+        }
+        
+        // Санитизация имени файла
+        $safeFilename = $this->sanitizeFilenameForJson($filename);
+        
+        // Генерируем уникальный префикс для избежания коллизий
+        $uniquePrefix = Uuid::uuid4()->toString();
+        $finalFilename = $uniquePrefix . '_' . $safeFilename;
+        
+        // Путь сохранения: storage/incoming/{device_id}/filename.json
+        $path = $deviceId . '/' . $finalFilename;
+        
+        try {
+            $fullPath = $this->fileService->getFullPath($path);
+            $dir = dirname($fullPath);
+            
+            // Создаем директорию если не существует
+            if (!is_dir($dir)) {
+                mkdir($dir, 0777, true);
+            }
+            
+            // Записываем файл (перезаписываем если существует)
+            file_put_contents($fullPath, $content);
+            
+            return [
+                'path' => $path,
+                'original_filename' => $safeFilename
+            ];
+        } catch (\Exception $e) {
+            $this->logger->error('Failed to write JSON file', ['error' => $e->getMessage()]);
+            return null;
+        }
+    }
+    
+    /**
+     * Санитизация имени JSON файла
+     */
+    private function sanitizeFilenameForJson(string $filename): string
+    {
+        // Удаляем опасные символы
+        $filename = preg_replace('/[^a-zA-Z0-9_\\-.]/u', '_', $filename);
+        // Убираем множественные подчеркивания
+        $filename = preg_replace('/_+/', '_', $filename);
+        // Гарантируем расширение .json
+        if (strtolower(pathinfo($filename, PATHINFO_EXTENSION)) !== 'json') {
+            $filename = pathinfo($filename, PATHINFO_FILENAME) . '.json';
+        }
+        // Ограничиваем длину имени файла
+        if (strlen($filename) > 255) {
+            $filename = substr($filename, 0, 250) . '.json';
+        }
+        return $filename;
+    }
+
+    /**
      * Отправка файла из backoffice в торговую точку
      * 
      * POST /api/v1/exchange/send-to-device

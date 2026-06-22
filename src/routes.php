@@ -32,6 +32,9 @@ return function($app) {
     
     // Группа защищённых маршрутов обмена (Exchange)
     $app->group('/api/v1/exchange', function (RouteCollectorProxy $group) {
+        // Загрузка данных из 1С для передачи на ТСД (POST с JSON телом)
+        $group->post('/incoming', [App\Controllers\ExchangeController::class, 'uploadFrom1C']);
+
         // Отправка файла из backoffice в торговую точку
         $group->post('/send-to-device', [App\Controllers\ExchangeController::class, 'sendToDevice']);
 
