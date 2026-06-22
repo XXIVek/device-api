@@ -86,13 +86,10 @@ class ExchangeController
         }
         
         // Получаем backoffice как получателя
-        $backofficeDevice = $this->getBackofficeDevice();
-        if (!$backofficeDevice) {
-            $this->logger->error('Backoffice device not found in database');
-            return $this->errorResponse($response, 'Backoffice not configured', 500, -102);
-        }
-        
-        $recipientUuid = $backofficeDevice['device_uuid'];
+        // Примечание: В текущей реализации backoffice не требует специального устройства.
+        // Файлы просто сохраняются в базе данных как входящие сообщения для организации.
+        // В качестве recipient_uuid используем uuid отправителя (сообщение помечается как "для backoffice")
+        $recipientUuid = $senderDeviceUuid;
         
         // Обработка JSON данных (для 1С)
         if (!$hasFile && $hasJsonBody) {
