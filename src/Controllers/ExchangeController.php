@@ -267,6 +267,7 @@ class ExchangeController
     /**
      * Сохранить JSON файл от 1С
      * Возвращает массив с относительным путем и оригинальным именем файла или null в случае ошибки.
+     * Если файл с таким именем уже существует - он будет перезаписан (согласно сценарию обмена).
      */
     private function saveJsonFile(string $content, string $deviceId, string $filename): ?array
     {
@@ -285,9 +286,8 @@ class ExchangeController
         // Санитизация имени файла
         $safeFilename = $this->sanitizeFilenameForJson($filename);
         
-        // Генерируем уникальный префикс для избежания коллизий
-        $uniquePrefix = Uuid::uuid4()->toString();
-        $finalFilename = $uniquePrefix . '_' . $safeFilename;
+        // НЕ генерируем уникальный префикс - файл должен перезаписываться по имени согласно сценарию
+        $finalFilename = $safeFilename;
         
         // Путь сохранения: storage/incoming/{device_id}/filename.json
         $path = $deviceId . '/' . $finalFilename;
