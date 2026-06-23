@@ -86,6 +86,48 @@ class Message
         return $row;
     }
 
+    /**
+     * Найти сообщение по пути к файлу и отправителю
+     * @param string $filePath Путь к файлу
+     * @param string $senderUuid UUID отправителя
+     * @return array|null
+     */
+    public function findByFilePath($filePath, $senderUuid)
+    {
+        $stmt = $this->db->prepare('SELECT * FROM messages WHERE file_path = ? AND sender_uuid = ?');
+        $stmt->execute([$filePath, $senderUuid]);
+        $row = $stmt->fetch();
+        if ($row) {
+            $row['id'] = \Ramsey\Uuid\Uuid::fromBytes($row['id'])->toString();
+        }
+        return $row;
+    }
+
+    /**
+     * Обновить сообщение по пути к файлу
+     * @param string $filePath Путь к файлу
+     * @param string $senderUuid UUID отправителя
+     * @param string $recipientUuid UUID получателя
+     * @param string $subject Тема сообщения
+     * @param string $body Тело сообщения (JSON)
+     * @return string UUID обновленного сообщения
+     */
+    public function updateByFilePath($filePath, $senderUuid, $recipientUuid, $subject, $body)
+    {
+        $stmt = $this->db->prepare(
+            'UPDATE messages 
+             SET sender_uuid = ?, recipient_uuid = ?, subject = ?, body = ?, updated_at = NOW()
+             WHERE file_path = ? AND sender_uuid = ?'
+        );
+        $stmt->execute([$senderUuid, $recipientUuid, $subject, $body, $filePath, $senderUuid]);
+        
+        // Возвращаем ID обновленного сообщения
+        $selectStmt = $this->db->prepare('SELECT id FROM messages WHERE file_path = ? AND sender_uuid = ?');
+        $selectStmt->execute([$filePath, $senderUuid]);
+        $row = $selectStmt->fetch();
+        return \Ramsey\Uuid\Uuid::fromBytes($row['id'])->toString();
+    }
+
     public function getForDevice($deviceUuid)
     {
         $stmt = $this->db->prepare('SELECT id, sender_uuid, recipient_uuid, subject, body, file_path, status, created_at, delivered_at FROM messages WHERE sender_uuid = ? OR recipient_uuid = ? ORDER BY created_at DESC');
