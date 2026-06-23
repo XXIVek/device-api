@@ -201,35 +201,53 @@ class ExchangeController
             return $this->errorResponse($response, 'Failed to save file', 500);
         }
         
-        // Создаём сообщение в базе данных
+        // Проверяем, существует ли уже сообщение с таким file_path для этого отправителя
+        $existingMessage = $this->messageModel->findByFilePath($filePath, $senderDeviceUuid);
+        
+        $subject = 'Данные инвентаризации';
         $messageJson = json_encode([
             'type' => 'inventory_data',
             'items_count' => count($data),
             'uploaded_at' => date('c')
         ], JSON_UNESCAPED_UNICODE);
         
-        $subject = 'Данные инвентаризации';
-        
         try {
-            $messageId = $this->messageModel->create(
-                $senderDeviceUuid,
-                $recipientUuid,
-                $subject,
-                $messageJson,
-                $filePath
-            );
+            if ($existingMessage) {
+                // Обновляем существующее сообщение (перезапись согласно сценарию)
+                $messageId = $this->messageModel->updateByFilePath(
+                    $filePath,
+                    $senderDeviceUuid,
+                    $recipientUuid,
+                    $subject,
+                    $messageJson
+                );
+                $this->logger->info('Data updated for TSD (file overwritten)', [
+                    'message_id' => $messageId,
+                    'from' => $senderDeviceUuid,
+                    'filename' => $originalFilenameStored,
+                    'items_count' => count($data)
+                ]);
+            } else {
+                // Создаём новое сообщение в базе данных
+                $messageId = $this->messageModel->create(
+                    $senderDeviceUuid,
+                    $recipientUuid,
+                    $subject,
+                    $messageJson,
+                    $filePath
+                );
+                $this->logger->info('Data uploaded for TSD', [
+                    'message_id' => $messageId,
+                    'from' => $senderDeviceUuid,
+                    'to' => $recipientUuid,
+                    'filename' => $originalFilenameStored,
+                    'items_count' => count($data)
+                ]);
+            }
         } catch (\Exception $e) {
-            $this->logger->error('Failed to create message', ['error' => $e->getMessage()]);
+            $this->logger->error('Failed to create/update message', ['error' => $e->getMessage()]);
             return $this->errorResponse($response, 'Database error', 500);
         }
-        
-        $this->logger->info('Data uploaded for TSD', [
-            'message_id' => $messageId,
-            'from' => $senderDeviceUuid,
-            'to' => $recipientUuid,
-            'filename' => $originalFilenameStored,
-            'items_count' => count($data)
-        ]);
         
         $result = [
             'status' => 'success',
