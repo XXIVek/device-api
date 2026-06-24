@@ -27,6 +27,30 @@
 
 ---
 
+## Структура таблицы `messages`
+
+### Описание колонок
+
+| # | Имя | Тип данных | Длина | По умолчанию | Сопоставление | Описание |
+|---|-----|------------|-------|--------------|---------------|----------|
+| 1 | `id` | `BINARY` | 16 | AUTO_INCREMENT | — | Уникальный идентификатор сообщения (UUID в бинарном формате) |
+| 2 | `sender_uuid` | `CHAR` | 36 | NULL | utf8mb4_unicode_ci | UUID устройства-отправителя |
+| 3 | `recipient_uuid` | `CHAR` | 36 | NULL | utf8mb4_unicode_ci | UUID устройства-получателя |
+| 4 | `subject` | `VARCHAR` | 255 | NULL | utf8mb4_unicode_ci | Тема сообщения |
+| 5 | `body` | `LONGTEXT` | — | NULL | utf8mb4_bin | Тело сообщения (JSON-данные) |
+| 6 | `file_path` | `VARCHAR` | 512 | NULL | utf8mb4_unicode_ci | Путь к прикреплённому файлу |
+| 7 | `status` | `ENUM` | — | `'pending'` | utf8mb4_unicode_ci | Статус сообщения: `pending`, `delivered`, и др. |
+| 8 | `created_at` | `TIMESTAMP` | — | current_timestamp | — | Время создания сообщения |
+| 9 | `delivered_at` | `TIMESTAMP` | — | NULL | — | Время доставки сообщения |
+
+### Примечания
+- `id` хранится как BINARY(16) — UUID в бинарном формате
+- `sender_uuid` и `recipient_uuid` — строки CHAR(36), содержат UUID в текстовом формате (формат: `550e8400-e29b-41d4-a716-446655440000`)
+- `body` содержит JSON-данные в виде строки
+- `status` по умолчанию `'pending'`, после доставки меняется на `'delivered'`
+
+---
+
 ## Сценарий 1: Отправка файлов из Backoffice в торговую точку
 
 ### Шаг 1: Backoffice отправляет файл в торговую точку

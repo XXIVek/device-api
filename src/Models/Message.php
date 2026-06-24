@@ -149,24 +149,26 @@ class Message
      */
     public function getIncomingForBackoffice($backofficeDeviceUuid, $senderUuid = null, $limit = 50, $offset = 0)
     {
+        // LIMIT/OFFSET требуют прямую вставку int (не параметризируются через PDO)
+        $limit = intval($limit) ?: 50;
+        $offset = intval($offset) ?: 0;
+        
         if ($senderUuid) {
-            $stmt = $this->db->prepare(
-                'SELECT id, sender_uuid, subject, body, file_path, status, created_at, delivered_at, exchange_status, exchange_comment
-                 FROM messages
-                 WHERE recipient_uuid = ? AND sender_uuid = ?
-                 ORDER BY created_at DESC
-                 LIMIT ? OFFSET ?'
-            );
-            $stmt->execute([$backofficeDeviceUuid, $senderUuid, $limit, $offset]);
+            $sql = 'SELECT id, sender_uuid, subject, body, file_path, status, created_at, delivered_at, exchange_status, exchange_comment
+                    FROM messages
+                    WHERE recipient_uuid = ? AND sender_uuid = ?
+                    ORDER BY created_at DESC
+                    LIMIT ' . $limit . ' OFFSET ' . $offset;
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$backofficeDeviceUuid, $senderUuid]);
         } else {
-            $stmt = $this->db->prepare(
-                'SELECT id, sender_uuid, subject, body, file_path, status, created_at, delivered_at, exchange_status, exchange_comment
-                 FROM messages
-                 WHERE recipient_uuid = ?
-                 ORDER BY created_at DESC
-                 LIMIT ? OFFSET ?'
-            );
-            $stmt->execute([$backofficeDeviceUuid, $limit, $offset]);
+            $sql = 'SELECT id, sender_uuid, subject, body, file_path, status, created_at, delivered_at, exchange_status, exchange_comment
+                    FROM messages
+                    WHERE recipient_uuid = ?
+                    ORDER BY created_at DESC
+                    LIMIT ' . $limit . ' OFFSET ' . $offset;
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$backofficeDeviceUuid]);
         }
         
         return $stmt->fetchAll();
@@ -179,16 +181,51 @@ class Message
      * @param int $offset Смещение
      * @return array
      */
+    /**
+     * Получить входящие сообщения для устройства (только pending - не загруженные)
+     * Для сценария 1С-ТСД: ТСД должен видеть только те файлы, которые ещё не скачал.
+     * @param string $deviceUuid UUID устройства
+     * @param int $limit Лимит
+     * @param int $offset Смещение
+     * @return array
+     */
+    public function getPendingForDevice($deviceUuid, $limit = 50, $offset = 0)
+    {
+        // LIMIT/OFFSET требуют прямую вставку int (не параметризируются через PDO)
+        $limit = intval($limit) ?: 50;
+        $offset = intval($offset) ?: 0;
+        
+        $sql = 'SELECT id, sender_uuid, subject, body, file_path, status, created_at, delivered_at, exchange_status, exchange_comment
+                FROM messages
+                WHERE recipient_uuid = ? AND status = "pending"
+                ORDER BY created_at DESC
+                LIMIT ' . $limit . ' OFFSET ' . $offset;
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$deviceUuid]);
+        
+        return $stmt->fetchAll();
+    }
+
+    /**
+     * Получить входящие сообщения для устройства (все статусы)
+     * @param string $deviceUuid UUID устройства
+     * @param int $limit Лимит
+     * @param int $offset Смещение
+     * @return array
+     */
     public function getIncomingForDevice($deviceUuid, $limit = 50, $offset = 0)
     {
-        $stmt = $this->db->prepare(
-            'SELECT id, sender_uuid, subject, body, file_path, status, created_at, delivered_at, exchange_status, exchange_comment
-             FROM messages
-             WHERE recipient_uuid = ?
-             ORDER BY created_at DESC
-             LIMIT ? OFFSET ?'
-        );
-        $stmt->execute([$deviceUuid, $limit, $offset]);
+        // LIMIT/OFFSET требуют прямую вставку int (не параметризируются через PDO)
+        $limit = intval($limit) ?: 50;
+        $offset = intval($offset) ?: 0;
+        
+        $sql = 'SELECT id, sender_uuid, subject, body, file_path, status, created_at, delivered_at, exchange_status, exchange_comment
+                FROM messages
+                WHERE recipient_uuid = ?
+                ORDER BY created_at DESC
+                LIMIT ' . $limit . ' OFFSET ' . $offset;
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$deviceUuid]);
         
         return $stmt->fetchAll();
     }

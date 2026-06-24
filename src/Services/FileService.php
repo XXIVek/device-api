@@ -43,6 +43,9 @@ class FileService
     /**
      * Сохранить загруженный файл из Psr\Http\Message\UploadedFileInterface
      * Возвращает массив с относительным путем и оригинальным именем файла или null в случае ошибки.
+     * 
+     * Для сценария 1С-ТСД: файлы хранятся с оригинальным именем для возможности замещения.
+     * При перезаписи старый файл заменяется новым.
      */
     public function saveUploadedFile($uploadedFile, $deviceId): ?array
     {
@@ -63,7 +66,6 @@ class FileService
             return null;
         }
 
-        // Генерируем уникальное имя, но сохраняем оригинальное
         $originalFilename = $uploadedFile->getClientFilename();
         $extension = strtolower(pathinfo($originalFilename, PATHINFO_EXTENSION));
         
@@ -78,11 +80,10 @@ class FileService
             $extension = 'bin';
         }
         
-        // Генерируем уникальный префикс для избежания коллизий
-        $uniquePrefix = Uuid::uuid4()->toString();
-        $safeFilename = $uniquePrefix . '_' . $this->sanitizeFilename($originalFilename);
+        // Сохраняем с оригинальным именем файла (для замещения в сценарии 1С-ТСД)
+        $safeFilename = $this->sanitizeFilename($originalFilename);
         
-        // Сохраняем в подпапке device_id
+        // Путь: {deviceId}/{safeFilename}
         $path = $deviceId . '/' . $safeFilename;
 
         try {

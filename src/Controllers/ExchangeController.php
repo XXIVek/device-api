@@ -245,8 +245,12 @@ class ExchangeController
                 ]);
             }
         } catch (\Exception $e) {
-            $this->logger->error('Failed to create/update message', ['error' => $e->getMessage()]);
-            return $this->errorResponse($response, 'Database error', 500);
+            $this->logger->error('Failed to create/update message', [
+                'error' => $e->getMessage(),
+                'sqlstate' => $e->errorInfo[0] ?? 'unknown',
+                'code' => $e->getCode()
+            ]);
+            return $this->errorResponse($response, 'Database error: ' . $e->getMessage(), 500);
         }
         
         $result = [
@@ -506,12 +510,12 @@ class ExchangeController
         
         // Определяем тип устройства и выбираем соответствующий метод
         if ($this->isBackofficeDevice($device)) {
-            // Backoffice получает файлы от торговых точек
+            // Backoffice получает файлы от торговых точек (все сообщения)
             $senderUuid = $queryParams['sender_uuid'] ?? null;
             $messages = $this->messageModel->getIncomingForBackoffice($deviceUuid, $senderUuid, $limit, $offset);
         } else {
-            // ТСД/1С получает файлы от backoffice
-            $messages = $this->messageModel->getIncomingForDevice($deviceUuid, $limit, $offset);
+            // ТСД получает только pending файлы (которые ещё не скачал)
+            $messages = $this->messageModel->getPendingForDevice($deviceUuid, $limit, $offset);
         }
         
         foreach ($messages as &$msg) {
@@ -725,10 +729,14 @@ class ExchangeController
     }
 
     /**
-     * Получение конкретного файла backoffice
+     * Получение конкретного файла (для backoffice и ТСД)
      * 
      * GET /api/v1/exchange/files/{message_id}
-     * Authorization: Bearer <backoffice_device_uuid>
+     * Authorization: Bearer <device_uuid>
+     * 
+     * Для сценария 1С-ТСД: файл НЕ удаляется при скачивании.
+     * ТСД удаляет файл задания вручную через DELETE /api/v1/exchange/files/{id}
+     * после загрузки результатов в 1С.
      * 
      * @param Request $request
      * @param Response $response
@@ -737,14 +745,8 @@ class ExchangeController
      */
     public function getFile(Request $request, Response $response, array $args): Response
     {
-        $backofficeDeviceUuid = $request->getAttribute('device_uuid');
+        $deviceUuid = $request->getAttribute('device_uuid');
         $messageIdStr = $args['id'];
-        
-        // Проверка что это backoffice
-        $backofficeDevice = $this->deviceModel->findByDeviceUuid($backofficeDeviceUuid);
-        if (!$backofficeDevice || !$this->isBackofficeDevice($backofficeDevice)) {
-            return $this->errorResponse($response, 'Access denied: backoffice only', 403);
-        }
         
         try {
             $messageIdBytes = Uuid::fromString($messageIdStr)->getBytes();
@@ -752,7 +754,13 @@ class ExchangeController
             return $this->errorResponse($response, 'Invalid message ID', 400);
         }
         
-        $msg = $this->messageModel->findForRecipient($messageIdBytes, $backofficeDeviceUuid);
+        // Проверяем для какого устройства (backoffice или ТСД)
+        $device = $this->deviceModel->findByDeviceUuid($deviceUuid);
+        if (!$device) {
+            return $this->errorResponse($response, 'Device not found', 404);
+        }
+        
+        $msg = $this->messageModel->findForRecipient($messageIdBytes, $deviceUuid);
         if (!$msg || !$msg['file_path']) {
             return $this->errorResponse($response, 'File not found', 404);
         }
@@ -762,18 +770,11 @@ class ExchangeController
             return $this->errorResponse($response, 'File not found on server', 404);
         }
         
-        // Извлекаем оригинальное имя файла из пути (оно хранится после UUID_)
-        $storedFilename = basename($fullPath);
-        // Формат имени: {uuid}_{original_filename}, извлекаем original_filename
-        $underscorePos = strpos($storedFilename, '_');
-        if ($underscorePos !== false) {
-            $originalFilename = substr($storedFilename, $underscorePos + 1);
-        } else {
-            $originalFilename = $storedFilename;
-        }
+        // Извлекаем оригинальное имя файла
+        $originalFilename = basename($msg['file_path']);
         
-        // Помечаем сообщение как прочитанное/полученное
-        $this->messageModel->markDelivered($messageIdBytes, $backofficeDeviceUuid);
+        // Больше не удаляем файл автоматически - ТСД удаляет вручную через DELETE
+        // (или backoffice помечает как delivered)
         
         $response = $response->withHeader('Content-Type', mime_content_type($fullPath))
                              ->withHeader('Content-Disposition', 'attachment; filename="' . $originalFilename . '"')

@@ -122,24 +122,45 @@ components:
         id:
           type: string
           format: uuid
-        sender_id:
-          type: integer
+          description: UUID сообщения (BINARY(16) в БД)
+        sender_uuid:
+          type: string
+          format: uuid
+          description: UUID устройства-отправителя (CHAR(36) в БД)
+        recipient_uuid:
+          type: string
+          format: uuid
+          description: UUID устройства-получателя (CHAR(36) в БД)
         subject:
           type: string
+          description: Тема сообщения (VARCHAR(255) в БД)
         body:
-          type: object
-        file_url:
+          type: string
+          format: byte
+          description: Тело сообщения — JSON-данные (LONGTEXT в БД)
+        file_path:
           type: string
           nullable: true
+          description: Путь к прикреплённому файлу (VARCHAR(512) в БД)
+        status:
+          type: string
+          enum: [pending, delivered]
+          description: Статус сообщения (ENUM в БД: pending, delivered и др.)
         created_at:
           type: string
           format: date-time
+          description: Время создания сообщения (TIMESTAMP в БД)
+        delivered_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Время доставки сообщения (TIMESTAMP в БД)
     MessageDetail:
       allOf:
         - $ref: '#/components/schemas/Message'
         - type: object
           properties:
-            file_path:
-              type: string
-              nullable: true
+            metadata:
+              type: object
+              description: Декодированные метаданные из body (JSON)
 
